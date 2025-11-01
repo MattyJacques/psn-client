@@ -4,7 +4,7 @@ require_relative "lib/psn/client/version"
 
 Gem::Specification.new do |spec|
   spec.name = "psn-client"
-  spec.version = Psn::Client::VERSION
+  spec.version = PSN::Client::VERSION
   spec.authors = ["Matthew Jacques"]
   spec.email = ["matty.jacques@proton.me"]
 

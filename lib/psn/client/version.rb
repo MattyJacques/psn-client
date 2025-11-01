@@ -1,6 +1,6 @@
 # frozen_string_literal: true
 
-module Psn
+module PSN
   module Client
     VERSION = "0.1.0"
   end

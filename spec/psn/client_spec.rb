@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
-RSpec.describe Psn::Client do
+RSpec.describe PSN::Client do
   it "has a version number" do
-    expect(Psn::Client::VERSION).not_to be nil
+    expect(PSN::Client::VERSION).not_to be nil
   end
 end
