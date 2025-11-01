@@ -1,8 +1,23 @@
+plugins:
+  - rubocop-performance
+  - rubocop-rake
+  - rubocop-rspec
+
 AllCops:
   TargetRubyVersion: 3.1
+  NewCops: enable
 
-Style/StringLiterals:
-  EnforcedStyle: double_quotes
+RSpec/ExampleLength:
+  Max: 15
 
-Style/StringLiteralsInInterpolation:
-  EnforcedStyle: double_quotes
+RSpec/MessageSpies:
+  EnforcedStyle: receive
+
+RSpec/MultipleExpectations:
+  Max: 3
+
+RSpec/MultipleMemoizedHelpers:
+  Max: 10
+
+RSpec/NestedGroups:
+  Max: 4
