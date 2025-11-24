@@ -1,6 +1,9 @@
 # frozen_string_literal: true
 
+require_relative 'client/auth'
 require_relative 'client/version'
+require_relative 'logger'
+require 'net/http'
 
 module PSN
   module Client
