@@ -18,6 +18,3 @@ gem 'rubocop'
 gem 'rubocop-performance'
 gem 'rubocop-rake'
 gem 'rubocop-rspec'
-
-# Handle OAuth authorisation
-gem 'oauth2'
