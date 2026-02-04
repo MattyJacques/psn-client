@@ -1,0 +1,14 @@
+module PSN
+  module Client
+    class Request
+      BASE_URL: String
+
+      def initialize: (String access_token) -> void
+      def get: (String path) -> untyped
+
+      private
+
+      def parse_response: (Net::HTTPResponse response) -> untyped
+    end
+  end
+end

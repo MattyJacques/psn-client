@@ -1,0 +1,22 @@
+module PSN
+  module Client
+    class Auth
+      AUTH_URL: String
+      BASIC_TOKEN: String?
+
+      def self.authenticate: () -> String
+      def authenticate: () -> String
+
+      private
+
+      def fetch_auth_code: () -> String
+      def http_for: (URI) -> Net::HTTP
+      def request_for: (URI) -> Net::HTTP::Get
+      def fetch_token: (String) -> OAuth2::AccessToken
+      def parse_code: (String) -> String
+      def client: () -> OAuth2::Client
+      def auth_url: () -> String
+      def npsso_cookie: () -> String
+    end
+  end
+end

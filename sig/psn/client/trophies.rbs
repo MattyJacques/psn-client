@@ -1,0 +1,10 @@
+module PSN
+  module Client
+    class Trophies
+      @request: Request
+
+      def initialize: (String access_token) -> void
+      def trophy_titles: (?user_id: String, ?limit: Integer, ?offset: Integer) -> untyped
+    end
+  end
+end

@@ -1,0 +1,4 @@
+module PSN
+  def self.logger: () -> (Logger | untyped)
+  def self.logger=: (Logger | untyped) -> (Logger | untyped)
+end
