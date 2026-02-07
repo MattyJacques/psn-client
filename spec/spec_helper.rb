@@ -1,5 +1,9 @@
 # frozen_string_literal: true
 
+# Initialise SimpleCov for code coverage measurement
+require 'simplecov'
+SimpleCov.start
+
 require 'psn/client'
 
 RSpec.configure do |config|
