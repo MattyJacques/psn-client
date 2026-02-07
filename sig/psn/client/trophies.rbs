@@ -5,6 +5,11 @@ module PSN
 
       def initialize: (String access_token) -> void
       def trophy_titles: (?user_id: String, ?limit: Integer, ?offset: Integer) -> untyped
+      def title_trophies: (np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, **untyped options) -> untyped
+      
+      private
+
+      def resolve_service_name: (String? service_name, String? platform) -> String?
     end
   end
 end

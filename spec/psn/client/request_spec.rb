@@ -20,12 +20,12 @@ RSpec.describe PSN::Client::Request do
     end
 
     it 'makes a request with correct headers' do
-      expect(http).to receive(:request) do |req|
+      request_service.get('/test')
+
+      expect(http).to have_received(:request) do |req|
         expect(req['Authorization']).to eq("Bearer #{access_token}")
         expect(req).to have_attributes(path: '/api/test', method: 'GET')
-      end.and_return(response)
-
-      request_service.get('/test')
+      end
     end
 
     it 'parses the response' do

@@ -30,8 +30,10 @@ RSpec.describe PSN::Client::Auth do
     end
 
     it 'fetches an auth code, exchanges it for a token and returns the token' do
-      expect(logger).to receive(:info).with('Getting new PSN access token')
-      expect(logger).to receive(:info).with('Acquired new PSN access token')
+      auth.authenticate
+
+      expect(logger).to have_received(:info).with('Getting new PSN access token')
+      expect(logger).to have_received(:info).with('Acquired new PSN access token')
 
       expect(auth.authenticate).to eq('ACCESS')
     end
