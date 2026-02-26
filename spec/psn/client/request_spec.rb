@@ -14,18 +14,22 @@ RSpec.describe PSN::Client::Request do
   end
 
   describe '#get' do
+    let(:captured_requests) { [] }
+
     before do
       allow(Net::HTTP).to receive(:start).and_yield(http)
-      allow(http).to receive(:request).and_return(response)
+      allow(http).to receive(:request) do |req|
+        captured_requests << req
+        response
+      end
     end
 
     it 'makes a request with correct headers' do
-      expect(http).to receive(:request) do |req|
-        expect(req['Authorization']).to eq("Bearer #{access_token}")
-        expect(req).to have_attributes(path: '/api/test', method: 'GET')
-      end.and_return(response)
-
       request_service.get('/test')
+
+      expect(http).to have_received(:request)
+      expect(captured_requests.last['Authorization']).to eq("Bearer #{access_token}")
+      expect(captured_requests.last).to have_attributes(path: '/api/test', method: 'GET')
     end
 
     it 'parses the response' do
