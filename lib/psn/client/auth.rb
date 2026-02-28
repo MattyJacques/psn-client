@@ -80,6 +80,14 @@ module PSN
         end
       end
 
+      def get_error_message(error)
+        if error == 'login_required'
+          'PSN authorisation failed, NPSSO code has expired'
+        else
+          "Unhandled PSN auth error (#{error})"
+        end
+      end
+
       def client
         @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', nil), '', site: AUTH_URL)
       end

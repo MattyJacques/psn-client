@@ -18,3 +18,7 @@ RSpec/MultipleMemoizedHelpers:
 
 RSpec/NestedGroups:
   Max: 4
+
+Metrics/ParameterLists:
+  Exclude:
+    - 'lib/psn/client/trophies.rb'

@@ -14,6 +14,7 @@ module PSN
       def request_for: (URI) -> Net::HTTP::Get
       def fetch_token: (String) -> OAuth2::AccessToken
       def parse_code: (String) -> String
+      def get_error_message: (String) -> String
       def client: () -> OAuth2::Client
       def auth_url: () -> String
       def npsso_cookie: () -> String

@@ -29,6 +29,22 @@ module PSN
         @request.get(path)
       end
 
+      def earned_trophies(np_communication_id:, user_id: 'me', trophy_group_id: 'all', np_service_name: nil,
+                          platform: nil, **options)
+        query_params = {
+          npServiceName: resolve_service_name(np_service_name, platform),
+          limit: options[:limit],
+          offset: options[:offset]
+        }.compact
+
+        query_string = query_params.map { |k, v| "#{k}=#{v}" }.join('&')
+
+        path = "/trophy/v1/users/#{user_id}/npCommunicationIds/#{np_communication_id}" \
+               "/trophyGroups/#{trophy_group_id}/trophies"
+        path += "?#{query_string}"
+        @request.get(path)
+      end
+
       private
 
       def resolve_service_name(service_name, platform)

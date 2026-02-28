@@ -39,8 +39,24 @@ RSpec.describe PSN::Client::Request do
     context 'when request fails' do
       let(:response) { instance_double(Net::HTTPNotFound, body: 'Not Found', code: '404', message: 'Not Found') }
 
-      it 'raises an error' do
+      it 'raises an error with status code and message' do
         expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 404/)
+      end
+    end
+
+    context 'when unauthorized' do
+      let(:response) { instance_double(Net::HTTPUnauthorized, body: 'Unauthorized', code: '401', message: 'Unauthorized') }
+
+      it 'raises an error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 401/)
+      end
+    end
+
+    context 'when server error occurs' do
+      let(:response) { instance_double(Net::HTTPServerError, body: 'Internal Server Error', code: '500', message: 'Internal Server Error') }
+
+      it 'raises an error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 500/)
       end
     end
   end
