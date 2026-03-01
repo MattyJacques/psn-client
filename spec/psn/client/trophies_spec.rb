@@ -32,6 +32,35 @@ RSpec.describe PSN::Client::Trophies do
     end
   end
 
+  describe '#trophy_summary' do
+    let(:response) do
+      {
+        'accountId' => '0000000000000000000',
+        'trophyLevel' => 437,
+        'progress' => 40,
+        'earnedTrophies' => { 'bronze' => 6212, 'silver' => 1450, 'gold' => 525, 'platinum' => 55 }
+      }
+    end
+
+    before do
+      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
+      allow(request).to receive(:get).and_return(response)
+    end
+
+    it 'calls the correct endpoint with default values' do
+      expect(trophies.trophy_summary).to eq(response)
+      expect(request).to have_received(:get).with('/trophy/v1/users/me/trophySummary')
+    end
+
+    context 'with a custom user_id' do
+      it 'passes the user_id correctly' do
+        trophies.trophy_summary(user_id: '12345')
+
+        expect(request).to have_received(:get).with('/trophy/v1/users/12345/trophySummary')
+      end
+    end
+  end
+
   describe '#title_trophies' do
     let(:response) { { 'trophies' => [] } }
     let(:np_comm_id) { 'NPWR12345_00' }

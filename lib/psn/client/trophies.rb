@@ -15,6 +15,11 @@ module PSN
         @request.get(path)
       end
 
+      def trophy_summary(user_id: 'me')
+        path = "/trophy/v1/users/#{user_id}/trophySummary"
+        @request.get(path)
+      end
+
       def title_trophies(np_communication_id:, trophy_group_id: 'all', np_service_name: nil, platform: nil, **options)
         query_params = {
           npServiceName: resolve_service_name(np_service_name, platform),
