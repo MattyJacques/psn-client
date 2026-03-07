@@ -2,7 +2,10 @@
 
 # Initialise SimpleCov for code coverage measurement
 require 'simplecov'
-SimpleCov.start 'rails'
+SimpleCov.start do
+  add_filter '/spec/'
+  add_group 'Lib', 'lib'
+end
 
 require 'psn/client'
 
