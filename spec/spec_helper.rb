@@ -2,7 +2,7 @@
 
 # Initialise SimpleCov for code coverage measurement
 require 'simplecov'
-SimpleCov.start
+SimpleCov.start 'rails'
 
 require 'psn/client'
 
