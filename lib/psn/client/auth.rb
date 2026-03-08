@@ -3,6 +3,7 @@
 require 'net/http'
 require 'uri'
 require 'oauth2'
+require 'json'
 
 module PSN
   module Client
@@ -37,9 +38,8 @@ module PSN
         uri = URI(auth_url)
 
         response = http_for(uri).request(request_for(uri))
-
         if response['location'].nil?
-          message = 'Failed to fetch PSN auth code, location header missing'
+          message = extract_error_message(response)
           PSN.logger.error(message)
           raise message
         end
@@ -67,20 +67,31 @@ module PSN
       end
 
       def parse_code(location)
-        code = location.match(%r{\?code=([A-Za-z0-9:?_\-./=]+)})
+        params = URI.decode_www_form(URI(location).query.to_s).to_h
+        code = params['code']
 
-        if code
-          code[1]
-        else
-          error = location.match(%r{&error=([A-Za-z0-9:?_\-./=]+)})
+        return code if code
 
-          message = get_error_message(error[1])
-          PSN.logger.error(message)
-          raise message
-        end
+        raise_auth_error(params)
       end
 
-      def get_error_message(error)
+      def raise_auth_error(params)
+        message = get_error_message(params['error'], params['error_description'])
+        PSN.logger.error(message)
+        raise message
+      end
+
+      def extract_error_message(response)
+        error_description = JSON.parse(response.body).fetch('error_description', nil)
+
+        error_description || 'Failed to fetch PSN auth code, location header missing'
+      rescue JSON::ParserError, NoMethodError, TypeError
+        'Failed to fetch PSN auth code, location header missing'
+      end
+
+      def get_error_message(error, error_description = nil)
+        return error_description if error_description
+
         if error == 'login_required'
           'PSN authorisation failed, NPSSO code has expired'
         else

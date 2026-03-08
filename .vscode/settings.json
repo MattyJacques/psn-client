@@ -1,5 +1,6 @@
 {
   "chat.tools.terminal.autoApprove": {
-    "bin/verify_trophies.rb": true
+    "bin/verify_trophies.rb": true,
+    "bundle": true
   }
 }
