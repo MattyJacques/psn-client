@@ -1,5 +1,7 @@
 # frozen_string_literal: true
 
+require 'debug'
+
 # Initialise SimpleCov for code coverage measurement
 require 'simplecov'
 SimpleCov.start do

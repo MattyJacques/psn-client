@@ -2,6 +2,7 @@
 # frozen_string_literal: true
 
 require 'bundler/setup'
+require 'debug'
 require 'psn/client'
 
 begin

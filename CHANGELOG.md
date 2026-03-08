@@ -1,5 +1,6 @@
 ## [Unreleased]
 
+- Added `debug` as a development dependency for breakpoint-based gem debugging
 - Added `trophy_summary` method to retrieve overall trophy level, points, and earned counts for a user
 - Added `earned_trophies` method to retrieve trophy earned status for a user on a specific title
 - Added `title_trophy_groups` and `earned_trophy_groups` methods for trophy group summary endpoints

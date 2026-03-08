@@ -6,6 +6,7 @@ source 'https://rubygems.org'
 gemspec
 
 # Development tools
+gem 'debug'
 gem 'irb'
 gem 'rake', '~> 13.0'
 
