@@ -6,12 +6,15 @@ module PSN
       def initialize: (String access_token) -> void
       def trophy_titles: (?user_id: String, ?limit: Integer, ?offset: Integer) -> untyped
       def trophy_summary: (?user_id: String) -> untyped
+      def title_trophy_groups: (np_communication_id: String, ?np_service_name: String?, ?platform: String?) -> untyped
+      def earned_trophy_groups: (?user_id: String, np_communication_id: String, ?np_service_name: String?, ?platform: String?) -> untyped
       def title_trophies: (np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, **untyped options) -> untyped
       def earned_trophies: (?user_id: String, np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, **untyped options) -> untyped
       
       private
 
       def resolve_service_name: (String? service_name, String? platform) -> String?
+      def build_query_string: (**untyped query_params) -> String
     end
   end
 end

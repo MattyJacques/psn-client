@@ -20,14 +20,26 @@ module PSN
         @request.get(path)
       end
 
+      def title_trophy_groups(np_communication_id:, np_service_name: nil, platform: nil)
+        query_string = build_query_string(npServiceName: resolve_service_name(np_service_name, platform))
+
+        path = "/trophy/v1/npCommunicationIds/#{np_communication_id}/trophyGroups?#{query_string}"
+        @request.get(path)
+      end
+
+      def earned_trophy_groups(np_communication_id:, user_id: 'me', np_service_name: nil, platform: nil)
+        query_string = build_query_string(npServiceName: resolve_service_name(np_service_name, platform))
+
+        path = "/trophy/v1/users/#{user_id}/npCommunicationIds/#{np_communication_id}/trophyGroups?#{query_string}"
+        @request.get(path)
+      end
+
       def title_trophies(np_communication_id:, trophy_group_id: 'all', np_service_name: nil, platform: nil, **options)
-        query_params = {
+        query_string = build_query_string(
           npServiceName: resolve_service_name(np_service_name, platform),
           limit: options[:limit],
           offset: options[:offset]
-        }.compact
-
-        query_string = query_params.map { |k, v| "#{k}=#{v}" }.join('&')
+        )
 
         path = "/trophy/v1/npCommunicationIds/#{np_communication_id}/trophyGroups/#{trophy_group_id}/trophies"
         path += "?#{query_string}"
@@ -36,13 +48,11 @@ module PSN
 
       def earned_trophies(np_communication_id:, user_id: 'me', trophy_group_id: 'all', np_service_name: nil,
                           platform: nil, **options)
-        query_params = {
+        query_string = build_query_string(
           npServiceName: resolve_service_name(np_service_name, platform),
           limit: options[:limit],
           offset: options[:offset]
-        }.compact
-
-        query_string = query_params.map { |k, v| "#{k}=#{v}" }.join('&')
+        )
 
         path = "/trophy/v1/users/#{user_id}/npCommunicationIds/#{np_communication_id}" \
                "/trophyGroups/#{trophy_group_id}/trophies"
@@ -62,6 +72,10 @@ module PSN
         elsif %w[PS5 PC].include?(platform)
           'trophy2'
         end
+      end
+
+      def build_query_string(**query_params)
+        query_params.compact.map { |key, value| "#{key}=#{value}" }.join('&')
       end
     end
   end

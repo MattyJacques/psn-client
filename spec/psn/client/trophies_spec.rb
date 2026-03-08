@@ -61,6 +61,108 @@ RSpec.describe PSN::Client::Trophies do
     end
   end
 
+  describe '#title_trophy_groups' do
+    let(:response) { { 'trophyGroups' => [] } }
+    let(:np_comm_id) { 'NPWR12345_00' }
+
+    before do
+      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
+      allow(request).to receive(:get).and_return(response)
+    end
+
+    it 'calls the correct endpoint with default values' do
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+
+      expect(trophies.title_trophy_groups(np_communication_id: np_comm_id)).to eq(response)
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'accepts an explicit service name' do
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+
+      trophies.title_trophy_groups(np_communication_id: np_comm_id, np_service_name: 'trophy')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'derives service name for PS4 platform' do
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+
+      trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'derives service name for PS5 platform' do
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy2"
+
+      trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS5')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'raises an error if both np_service_name and platform are provided' do
+      expect do
+        trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4', np_service_name: 'trophy')
+      end.to raise_error(ArgumentError, /Provide either np_service_name or platform, not both/)
+    end
+  end
+
+  describe '#earned_trophy_groups' do
+    let(:response) { { 'trophyGroups' => [] } }
+    let(:np_comm_id) { 'NPWR12345_00' }
+
+    before do
+      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
+      allow(request).to receive(:get).and_return(response)
+    end
+
+    it 'calls the correct endpoint with default values' do
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+
+      expect(trophies.earned_trophy_groups(np_communication_id: np_comm_id)).to eq(response)
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'accepts a custom user_id' do
+      path = "/trophy/v1/users/12345/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+
+      trophies.earned_trophy_groups(user_id: '12345', np_communication_id: np_comm_id)
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'accepts an explicit service name' do
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+
+      trophies.earned_trophy_groups(np_communication_id: np_comm_id, np_service_name: 'trophy')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'derives service name for PS4 platform' do
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+
+      trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'derives service name for PS5 platform' do
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy2"
+
+      trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS5')
+
+      expect(request).to have_received(:get).with(path)
+    end
+
+    it 'raises an error if both np_service_name and platform are provided' do
+      expect do
+        trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4', np_service_name: 'trophy')
+      end.to raise_error(ArgumentError, /Provide either np_service_name or platform, not both/)
+    end
+  end
+
   describe '#title_trophies' do
     let(:response) { { 'trophies' => [] } }
     let(:np_comm_id) { 'NPWR12345_00' }
