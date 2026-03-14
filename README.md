@@ -1,28 +1,72 @@
 # PSN::Client
 
-TODO: Delete this and the text below, and describe your gem
-
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/psn/client`. To experiment with that code, run `bin/console` for an interactive prompt.
+A Ruby client for the PlayStation Network (PSN) API. Handles authentication via an NPSSO cookie and provides access to user trophy data.
 
 ## Installation
-
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
 
 Install the gem and add to the application's Gemfile by executing:
 
 ```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+bundle add psn-client
 ```
 
 If bundler is not being used to manage dependencies, install the gem by executing:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+gem install psn-client
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+### Environment variables
+
+Authentication requires three environment variables. You can find the values in the [PSN API documentation](https://andshrew.github.io/PlayStation-Trophies/APIv2.html) or the bundled [API reference](docs/andshrew/APIv2.md).
+
+| Variable | Description |
+|---|---|
+| `PSN_NPSSO` | Your NPSSO token, obtained from a browser session on PlayStation.com |
+| `PSN_BASIC_TOKEN` | The base64-encoded `client_id:client_secret` for the PSN OAuth2 client |
+| `PSN_CLIENT_ID` | The PSN OAuth2 client ID |
+
+### Authentication
+
+```ruby
+require 'psn/client'
+
+access_token = PSN::Client::Auth.authenticate
+```
+
+`authenticate` exchanges your NPSSO token for a short-lived PSN access token string.
+
+### Trophy data
+
+Pass the access token to `PSN::Client::Trophies` and call the relevant method. All `user_id` parameters default to `'me'` (the authenticated user).
+
+```ruby
+trophies = PSN::Client::Trophies.new(access_token)
+
+# Overall trophy level, points, and earned counts
+trophies.trophy_summary
+trophies.trophy_summary(user_id: 'example_user')
+
+# List of trophy titles (games) for a user
+trophies.trophy_titles
+trophies.trophy_titles(limit: 100, offset: 0)
+
+# Trophy groups defined for a title
+# Use `platform:` shorthand ('PS3', 'PS4', 'PSVita', 'PS5', 'PC') or pass
+# `np_service_name:` directly ('trophy' or 'trophy2').
+trophies.title_trophy_groups(np_communication_id: 'NPWR12345_00', platform: 'PS5')
+
+# Trophy group progress earned by a user on a title
+trophies.earned_trophy_groups(np_communication_id: 'NPWR12345_00', platform: 'PS5')
+
+# Full trophy list for a title
+trophies.title_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
+
+# Trophy earned status for a user on a title
+trophies.earned_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
+```
 
 ## Development
 
@@ -34,7 +78,7 @@ To install this gem onto your local machine, run `bundle exec rake install`. To 
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/psn-client. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/psn-client/blob/main/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/MattyJacques/psn-client. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/MattyJacques/psn-client/blob/main/CODE_OF_CONDUCT.md).
 
 ## License
 
@@ -42,4 +86,4 @@ The gem is available as open source under the terms of the [MIT License](https:/
 
 ## Code of Conduct
 
-Everyone interacting in the PSN::Client project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/psn-client/blob/main/CODE_OF_CONDUCT.md).
+Everyone interacting in the PSN::Client project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/MattyJacques/psn-client/blob/main/CODE_OF_CONDUCT.md).
