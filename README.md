@@ -20,13 +20,15 @@ gem install psn-client
 
 ### Environment variables
 
-Authentication requires three environment variables. You can find the values in the [PSN API documentation](https://andshrew.github.io/PlayStation-Trophies/APIv2.html) or the bundled [API reference](docs/andshrew/APIv2.md).
+Authentication only needs your NPSSO token. To get it, sign in at playstation.com, then open <https://ca.account.sony.com/api/v1/ssocookie> and copy the `npsso` value. It lasts about two months.
 
-| Variable | Description |
-|---|---|
-| `PSN_NPSSO` | Your NPSSO token, obtained from a browser session on PlayStation.com |
-| `PSN_BASIC_TOKEN` | The base64-encoded `client_id:client_secret` for the PSN OAuth2 client |
-| `PSN_CLIENT_ID` | The PSN OAuth2 client ID |
+| Variable | Required | Description |
+|---|---|---|
+| `PSN_NPSSO` | Yes | Your NPSSO token |
+| `PSN_CLIENT_ID` | No | The PSN OAuth2 client ID. Defaults to the PlayStation app's public client (`PSN::Client::Auth::DEFAULT_CLIENT_ID`) |
+| `PSN_BASIC_TOKEN` | No | The base64-encoded `client_id:client_secret`. Defaults to the PlayStation app's (`PSN::Client::Auth::DEFAULT_BASIC_TOKEN`). It is read once, when the gem loads |
+
+The defaults are the same values listed in the [PSN API documentation](https://andshrew.github.io/PlayStation-Trophies/APIv2.html) and the bundled [API reference](docs/andshrew/APIv2.md). If you override `PSN_CLIENT_ID`, override `PSN_BASIC_TOKEN` to match.
 
 ### Authentication
 

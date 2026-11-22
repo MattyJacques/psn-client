@@ -11,7 +11,12 @@ module PSN
     # for an authorization code and then exchanging that code for a token.
     class Auth
       AUTH_URL = 'https://ca.account.sony.com/api/authz/v3/'
-      BASIC_TOKEN = ENV.fetch('PSN_BASIC_TOKEN', nil)
+      # The PlayStation Android app's public OAuth client, the same for every user (see
+      # docs/andshrew/APIv2.md). PSN_CLIENT_ID and PSN_BASIC_TOKEN override them.
+      DEFAULT_CLIENT_ID = '09515159-7237-4370-9b40-3806e67c0891'
+      # Base64 of "<DEFAULT_CLIENT_ID>:<client secret>".
+      DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
+      BASIC_TOKEN = ENV.fetch('PSN_BASIC_TOKEN', DEFAULT_BASIC_TOKEN)
 
       class << self
         def authenticate
@@ -100,7 +105,7 @@ module PSN
       end
 
       def client
-        @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', nil), '', site: AUTH_URL)
+        @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', DEFAULT_CLIENT_ID), '', site: AUTH_URL)
       end
 
       def auth_url
