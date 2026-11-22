@@ -1,0 +1,54 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'debug'
+require 'psn/client'
+
+# Runs one check, printing its summary or the error without stopping the rest.
+def check(label)
+  result = yield
+  puts "#{label}: #{result}"
+rescue StandardError => e
+  puts "#{label}: FAILED: #{e.class}: #{e.message}"
+  nil
+end
+
+puts 'Authenticating...'
+token = PSN::Client::Auth.authenticate
+puts 'Authenticated!'
+
+users = PSN::Client::Users.new(token)
+account = PSN::Client::Account.new(token)
+online_id = nil
+account_id = nil
+
+check('Account#summary') do
+  profile = account.summary.dig('data', 'oracleUserProfileRetrieve')
+  online_id = profile['onlineId']
+  account_id = profile['accountId']
+  "online ID #{online_id}, account ID #{account_id}"
+end
+
+if online_id
+  check('Users#search') do
+    results = users.search(online_id).dig('domainResponses', 0, 'results') || []
+    "#{results.size} results"
+  end
+  check('Users#account_id') do
+    found = users.account_id(online_id)
+    "#{found} (#{found == account_id.to_s ? 'matches' : 'does not match'} summary)"
+  end
+  check('Users#profile') { "keys: #{users.profile(online_id: online_id).keys.first(5).join(', ')}" }
+end
+
+if account_id
+  check('Users#profile_by_account_id') do
+    "keys: #{users.profile_by_account_id(account_id: account_id).keys.join(', ')}"
+  end
+end
+
+check('Users#played_games') { "#{users.played_games(limit: 5)['titles']&.size.to_i} titles" }
+check('Account#devices') { "keys: #{account.devices.keys.join(', ')}" }
+check('Account#library') { "keys: #{account.library(limit: 5)['data']&.keys&.join(', ')}" }
+check('Account#purchased_games') { "keys: #{account.purchased_games(size: 5)['data']&.keys&.join(', ')}" }
