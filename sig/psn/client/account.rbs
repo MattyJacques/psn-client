@@ -1,0 +1,26 @@
+module PSN
+  module Client
+    class Account
+      DEVICES_PATH: String
+      DEVICES_PARAMS: Hash[String, String]
+      LIBRARY_OPERATION: String
+      LIBRARY_HASH: String
+      LIBRARY_CATEGORIES: String
+      LIBRARY_MAX_LIMIT: Integer
+      PURCHASED_OPERATION: String
+      PURCHASED_HASH: String
+      PURCHASED_VARIABLES: Hash[String, untyped]
+      SUMMARY_OPERATION: String
+      SUMMARY_HASH: String
+      SUMMARY_HEADERS: Hash[String, String]
+
+      @request: Request
+
+      def initialize: (String access_token) -> void
+      def devices: () -> untyped
+      def library: (?limit: Integer) -> untyped
+      def purchased_games: (?size: Integer, ?start: Integer) -> untyped
+      def summary: () -> untyped
+    end
+  end
+end
