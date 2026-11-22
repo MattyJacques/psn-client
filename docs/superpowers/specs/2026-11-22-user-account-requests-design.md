@@ -80,7 +80,8 @@ In a future milestone it will switch to this gem from `psn-client-ruby`, the cod
   - `graphql(operation_name, variables, sha256_hash, host: :mobile, headers: {})`, a
     persisted-query GET to `/graphql/v1/op` with `operationName`, `variables` (JSON) and
     `extensions` (`{"persistedQuery":{"version":1,"sha256Hash":...}}`) as query parameters, and the
-    `Apollo-Require-Preflight: true` header. Sony can return HTTP 200 with an `errors` array; raise
+    `Apollo-Require-Preflight: true` header. The JSON-valued parameters must be URL-encoded (for
+    example with `URI.encode_www_form`), unlike `Trophies`' raw `build_query_string`. Sony can return HTTP 200 with an `errors` array; raise
     `Error` in that case.
 - Map errors:
   - 403 with a JSON `error.message` matching `/access control|privacy/i` raises
