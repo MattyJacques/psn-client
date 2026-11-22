@@ -17,4 +17,10 @@ RSpec.describe PSN::Client do
         .to raise_error(described_class, 'test error')
     end
   end
+
+  describe PSN::Client::PrivacyError do
+    it 'is a PSN::Client::Error' do
+      expect(described_class.ancestors).to include(PSN::Client::Error)
+    end
+  end
 end

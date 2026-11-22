@@ -1,14 +1,25 @@
 module PSN
   module Client
     class Request
+      HOSTS: Hash[Symbol, String]
       BASE_URL: String
+      GRAPHQL_PATH: String
+      PRIVACY_PATTERN: Regexp
+      USER_AGENT: String
 
       def initialize: (String access_token) -> void
-      def get: (String path) -> untyped
+      def get: (String path, ?host: Symbol, ?params: Hash[untyped, untyped], ?headers: Hash[String, String]) -> untyped
+      def post: (String path, untyped body, ?host: Symbol, ?headers: Hash[String, String]) -> untyped
+      def graphql: (String operation_name, Hash[untyped, untyped] variables, String sha256_hash, ?host: Symbol, ?headers: Hash[String, String]) -> untyped
 
       private
 
+      def authorize: (Net::HTTPRequest request, Hash[String, String] headers) -> Net::HTTPRequest
+      def raise_graphql_errors: (untyped result) -> void
+      def build_uri: (Symbol host, String path, Hash[untyped, untyped] params) -> URI::Generic
+      def perform: (URI::Generic uri, Net::HTTPRequest http_request) -> untyped
       def parse_response: (Net::HTTPResponse response) -> untyped
+      def privacy_error?: (Net::HTTPResponse response) -> bool
     end
   end
 end

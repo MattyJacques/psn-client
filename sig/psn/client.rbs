@@ -1,6 +1,13 @@
 module PSN
   module Client
     VERSION: String
+
+    class Error < StandardError
+    end
+
+    class PrivacyError < Error
+    end
+
     # See the writing guide of rbs: https://github.com/ruby/rbs#guides
   end
 end

@@ -70,6 +70,68 @@ trophies.title_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
 trophies.earned_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
 ```
 
+### User data
+
+`PSN::Client::Users` looks up other players and their games. These use undocumented Sony endpoints that can change without notice.
+
+```ruby
+users = PSN::Client::Users.new(access_token)
+
+# Search for players (raw GraphQL response, first page only; near-matches included)
+results = users.search('example')
+results.dig('data', 'universalContextSearch', 'results')
+
+# Resolve an online ID to an account ID string, via the profile
+# (raises PSN::Client::Error if not found, ArgumentError for an invalid online ID)
+users.account_id('example_user')
+
+# Profile for an online ID (returns the "profile" hash)
+users.profile(online_id: 'example_user')
+
+# Profile for a numeric account ID
+users.profile_by_account_id(account_id: '1234567890123456789')
+
+# Games played by a user (user_id defaults to 'me'; limit defaults to 200, the maximum)
+users.played_games
+users.played_games(user_id: '1234567890123456789', limit: 50, offset: 0)
+```
+
+`profile` and `account_id` raise `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `user_id` that is not `'me'` or numeric, or a `limit` above 200.
+
+If a user's privacy settings block the request, Sony responds with HTTP 403 and the client raises `PSN::Client::PrivacyError`, a subclass of `PSN::Client::Error`.
+
+```ruby
+begin
+  users.played_games(user_id: account_id)
+rescue PSN::Client::PrivacyError
+  # the user has hidden this data
+end
+```
+
+### Signed-in account
+
+`PSN::Client::Account` returns data about the authenticated account only. Like `Users`, it relies on undocumented Sony endpoints that can change.
+
+```ruby
+account = PSN::Client::Account.new(access_token)
+
+# Registered devices
+account.devices
+
+# Game library (limit defaults to 100, the maximum)
+account.library
+account.library(limit: 20)
+
+# Purchased games (size defaults to 200, start to 0)
+account.purchased_games
+account.purchased_games(size: 50, start: 0)
+
+# Profile summary, including online ID and account ID
+account.summary.dig('data', 'oracleUserProfileRetrieve')
+```
+
+`library` raises `ArgumentError` for a `limit` above 100. `library`, `purchased_games` and `summary` return the raw GraphQL response body.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake spec` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
