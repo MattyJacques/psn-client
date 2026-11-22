@@ -35,7 +35,7 @@ Everything lives under `PSN::Client` in `lib/psn/client/`; `require 'psn/client'
 
 Things that are easy to get wrong:
 
-- **Configuration is env-only**: `PSN_NPSSO`, `PSN_CLIENT_ID`, `PSN_BASIC_TOKEN`. `Auth::BASIC_TOKEN` is a constant read from ENV when the file is *loaded*; the other two are read lazily per call. Setting or stubbing `PSN_BASIC_TOKEN` after load has no effect (the `ENV.fetch` stub for it in `auth_spec.rb` is inert — use `stub_const` to control it).
+- **Configuration is env-only**: `PSN_NPSSO` (required), `PSN_CLIENT_ID` and `PSN_BASIC_TOKEN` (optional, defaulting to `Auth::DEFAULT_CLIENT_ID` / `DEFAULT_BASIC_TOKEN`, the PlayStation app's public OAuth client). `Auth::BASIC_TOKEN` is a constant read from ENV when the file is *loaded*; the other two are read lazily per call. Setting or stubbing `PSN_BASIC_TOKEN` after load has no effect (the `ENV.fetch` stub for it in `auth_spec.rb` is inert — use `stub_const` to control it).
 - **`np_service_name:` vs `platform:`** — title-scoped methods accept one or the other; passing both raises `ArgumentError`. `platform:` maps PS3/PS4/PSVita → `trophy` and PS5/PC → `trophy2` (`resolve_service_name`). Passing neither, or an unrecognised platform, silently omits `npServiceName`, which the API rejects for PS3/PS4/PSVita titles.
 - **Query strings are not URL-encoded** — `build_query_string` drops `nil` values and interpolates the rest raw. Optional `limit:`/`offset:` on `title_trophies`/`earned_trophies` travel through `**options`, so any other keyword passed there is silently ignored.
 - **`PSN.logger`** (`lib/psn/logger.rb`) defaults to `Rails.logger` when Rails is defined, otherwise stdout, and is memoized; override with `PSN.logger=`. Debug-level logging includes the raw auth code.

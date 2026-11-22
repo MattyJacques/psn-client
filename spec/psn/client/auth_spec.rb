@@ -23,6 +23,30 @@ RSpec.describe PSN::Client::Auth do
     end
   end
 
+  describe 'default credentials' do
+    it 'defaults the client ID to the PlayStation app client' do
+      expect(described_class::DEFAULT_CLIENT_ID).to eq('09515159-7237-4370-9b40-3806e67c0891')
+    end
+
+    it 'defaults the basic token to the base64 of the app client ID and secret' do
+      expect(described_class::DEFAULT_BASIC_TOKEN.unpack1('m0'))
+        .to eq("#{described_class::DEFAULT_CLIENT_ID}:ucPjka5tntB2KqsP")
+    end
+
+    context 'when PSN_CLIENT_ID is unset' do
+      before do
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', anything) { |_key, default| default }
+        allow(OAuth2::Client).to receive(:new).and_call_original
+      end
+
+      it 'uses the default client ID' do
+        described_class.new.send(:client)
+        expect(OAuth2::Client).to have_received(:new).with(described_class::DEFAULT_CLIENT_ID, '', anything)
+      end
+    end
+  end
+
   describe '#authenticate' do
     let(:auth) { described_class.new }
     let(:http) { instance_double(Net::HTTP) }
@@ -32,8 +56,8 @@ RSpec.describe PSN::Client::Auth do
 
     before do
       allow(ENV).to receive(:fetch).with('PSN_NPSSO', nil).and_return('test_npsso')
-      allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', nil).and_return('test_client_id')
-      allow(ENV).to receive(:fetch).with('PSN_BASIC_TOKEN', nil).and_return('test_basic_token')
+      allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', described_class::DEFAULT_CLIENT_ID)
+                                   .and_return('test_client_id')
 
       allow(OAuth2::Client).to receive(:new).and_return(oauth_client)
       allow(oauth_client).to receive(:auth_code).and_return(auth_code_strategy)
