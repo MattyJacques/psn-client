@@ -2,7 +2,9 @@ module PSN
   module Client
     class Auth
       AUTH_URL: String
-      BASIC_TOKEN: String?
+      DEFAULT_CLIENT_ID: String
+      DEFAULT_BASIC_TOKEN: String
+      BASIC_TOKEN: String
 
       def self.authenticate: () -> String
       def authenticate: () -> String

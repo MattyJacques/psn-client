@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+- `PSN_CLIENT_ID` and `PSN_BASIC_TOKEN` are now optional. They default to the PlayStation app's public OAuth client, so only `PSN_NPSSO` is required
+
 ## [0.1.0] - 2026-03-14
 
 - Initial release
