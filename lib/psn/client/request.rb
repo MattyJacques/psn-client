@@ -14,6 +14,7 @@ module PSN
         web: 'https://web.np.playstation.com/api'
       }.freeze
       BASE_URL = HOSTS[:mobile]
+      GRAPHQL_PATH = '/graphql/v1/op'
       PRIVACY_PATTERN = /access control|privacy/i
 
       def initialize(access_token)
@@ -22,14 +23,46 @@ module PSN
 
       def get(path, host: :mobile, params: {}, headers: {})
         uri = build_uri(host, path, params)
-        request = Net::HTTP::Get.new(uri)
-        request['Authorization'] = "Bearer #{@access_token}"
-        headers.each { |name, value| request[name] = value }
+
+        perform(uri, authorize(Net::HTTP::Get.new(uri), headers))
+      end
+
+      def post(path, body, host: :mobile, headers: {})
+        uri = build_uri(host, path, {})
+        request = authorize(Net::HTTP::Post.new(uri), headers)
+        request['Content-Type'] = 'application/json'
+        request.body = JSON.generate(body)
 
         perform(uri, request)
       end
 
+      def graphql(operation_name, variables, sha256_hash, host: :mobile, headers: {})
+        params = {
+          'operationName' => operation_name,
+          'variables' => JSON.generate(variables),
+          'extensions' => JSON.generate('persistedQuery' => { 'version' => 1, 'sha256Hash' => sha256_hash })
+        }
+        result = get(GRAPHQL_PATH, host: host, params: params,
+                                   headers: { 'Apollo-Require-Preflight' => 'true' }.merge(headers))
+        raise_graphql_errors(result)
+        result
+      end
+
       private
+
+      def authorize(request, headers)
+        request['Authorization'] = "Bearer #{@access_token}"
+        headers.each { |name, value| request[name] = value }
+        request
+      end
+
+      def raise_graphql_errors(result)
+        errors = result['errors'] if result.is_a?(Hash)
+        return unless errors.is_a?(Array) && !errors.empty?
+
+        messages = errors.map { |error| error.is_a?(Hash) ? error['message'] : error.to_s }
+        raise Error, "PSN GraphQL error: #{messages.join('; ')}"
+      end
 
       def build_uri(host, path, params)
         url = "#{HOSTS.fetch(host)}#{path}"

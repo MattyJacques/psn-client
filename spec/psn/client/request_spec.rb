@@ -121,4 +121,91 @@ RSpec.describe PSN::Client::Request do
       end
     end
   end
+
+  describe '#post' do
+    let(:captured_requests) { [] }
+
+    before do
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+      allow(http).to receive(:request) do |req|
+        captured_requests << req
+        response
+      end
+    end
+
+    it 'sends a JSON body' do
+      request_service.post('/search/v1/universalSearch', { 'searchTerm' => 'abc' })
+      req = captured_requests.last
+      expect(req).to have_attributes(method: 'POST', path: '/api/search/v1/universalSearch',
+                                     body: '{"searchTerm":"abc"}')
+      expect(req['Content-Type']).to eq('application/json')
+    end
+
+    it 'sends the bearer token and extra headers' do
+      request_service.post('/x', {}, headers: { 'X-Extra' => 'y' })
+      expect(captured_requests.last['Authorization']).to eq("Bearer #{access_token}")
+      expect(captured_requests.last['X-Extra']).to eq('y')
+    end
+
+    it 'parses the response' do
+      expect(request_service.post('/x', {})).to eq({ 'key' => 'value' })
+    end
+  end
+
+  describe '#graphql' do
+    let(:captured_requests) { [] }
+
+    before do
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+      allow(http).to receive(:request) do |req|
+        captured_requests << req
+        response
+      end
+    end
+
+    it 'encodes a persisted query' do
+      request_service.graphql('getUserGameList', { 'limit' => 1 }, 'abc123')
+      query = URI.decode_www_form(URI(captured_requests.last.path).query).to_h
+      expect(query).to eq('operationName' => 'getUserGameList', 'variables' => '{"limit":1}',
+                          'extensions' => '{"persistedQuery":{"version":1,"sha256Hash":"abc123"}}')
+      expect(captured_requests.last['Apollo-Require-Preflight']).to eq('true')
+    end
+
+    it 'uses the web host' do
+      request_service.graphql('op', {}, 'h', host: :web)
+      expect(Net::HTTP).to have_received(:start).with('web.np.playstation.com', 443, use_ssl: true)
+      expect(URI(captured_requests.last.path).path).to eq('/api/graphql/v1/op')
+    end
+
+    it 'merges extra headers' do
+      request_service.graphql('op', {}, 'h', headers: { 'X-Extra' => 'y' })
+      expect(captured_requests.last['X-Extra']).to eq('y')
+      expect(captured_requests.last['Apollo-Require-Preflight']).to eq('true')
+    end
+
+    context 'when the body carries GraphQL errors' do
+      let(:response) do
+        res = Net::HTTPSuccess.new(1.1, '200', 'OK')
+        allow(res).to receive(:body).and_return('{"errors":[{"message":"bad"},{"message":"worse"}]}')
+        res
+      end
+
+      it 'raises Error' do
+        expect { request_service.graphql('op', {}, 'h') }
+          .to raise_error(PSN::Client::Error, 'PSN GraphQL error: bad; worse')
+      end
+    end
+
+    context 'when errors is empty' do
+      let(:response) do
+        res = Net::HTTPSuccess.new(1.1, '200', 'OK')
+        allow(res).to receive(:body).and_return('{"data":{},"errors":[]}')
+        res
+      end
+
+      it 'returns the body' do
+        expect(request_service.graphql('op', {}, 'h')).to eq('data' => {}, 'errors' => [])
+      end
+    end
+  end
 end
