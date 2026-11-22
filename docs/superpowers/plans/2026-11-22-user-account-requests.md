@@ -29,7 +29,7 @@ library), RBS in `sig/`, RuboCop.
 - **Backward compatibility:** `Auth`, `Trophies`, and `Request#get(path)` behave exactly as today. The
   existing specs pass unchanged.
 - **Undocumented endpoints:** each endpoint's paths, hashes and quirks live as constants in the class
-  that uses them, with a comment saying how each was verified ("verified live in ai-client, 2026-07").
+  that uses them, with a comment saying how each was verified ("verified live, <date>").
 - **Returns:** every method returns Sony's full parsed body. There are two exceptions:
   - `Users#account_id` returns a `String`
   - `Users#profile` returns the `profile` hash
@@ -238,11 +238,10 @@ end
   - `SEARCH_PATH = '/search/v1/universalSearch'`
   - `SEARCH_DOMAIN = 'SocialAllAccounts'`
   - `PROFILE2_PATH = '/userProfile/v1/users/%s/profile2'`, on the `:community` host
-  - `PROFILE2_FIELDS`, copied verbatim from
-    `../ai-client/lib/psn_client/resources/profiles.rb` (`PROFILE2_FIELDS`)
+  - `PROFILE2_FIELDS = 'npId,onlineId,accountId,avatarUrls,plus,aboutMe,languagesUsed,trophySummary(@default,level,progress,earnedTrophies),isOfficiallyVerified,primaryOnlineStatus,presences(@default,@titleInfo,platform,lastOnlineDate)'`
   - `PROFILE_BY_ACCOUNT_PATH = '/userProfile/v1/internal/users/%s/profiles'`
   - `PLAYED_GAMES_PATH = '/gamelist/v2/users/%s/titles'`
-  - `PLAYED_GAMES_MAX_LIMIT = 200` (201 returns HTTP 400, verified live in ai-client)
+  - `PLAYED_GAMES_MAX_LIMIT = 200` (201 returns HTTP 400, verified live)
   - `ONLINE_ID_PATTERN = /\A[a-zA-Z0-9_-]{3,16}\z/`
 
 - [ ] **Step 1: Write the failing tests.** Stub `Request.new(access_token)` with
@@ -339,7 +338,7 @@ it('rejects nil')     { expect { users.profile(online_id: nil) }.to raise_error(
   - `SUMMARY_OPERATION = 'getProfileOracle'`
   - `SUMMARY_HASH = 'fc0d765f537f3dce3e0d91c71e85daa401042ba43066acde9f8f584faced10df'`
   - `SUMMARY_HEADERS = { 'apollographql-client-name' => 'oracle' }`, on the `:web` host. Without this
-    header the call returns HTTP 400 "Cannot query field" (verified live in ai-client on 2026-07-11).
+    header the call returns HTTP 400 "Cannot query field" (verified live on 2026-07-11).
 
 - [ ] **Step 1: Write the failing tests.** Stub `Request` as in Task 3:
 

@@ -7,8 +7,7 @@ Date: 2026-11-22
 `psn-client` is published on RubyGems and must stay generic. Its long-term goal is to cover every PSN
 request. Today it only covers trophies. This piece adds data about PSN accounts: who a user is,
 what they've played, and details of the signed-in account. The first consumer will be the re-earn app.
-In a future milestone it will switch to this gem from `psn-client-ruby`, the codebase in
-`../ai-client`. The account creation date is out of scope here. The user is handling it separately.
+In a future milestone it will switch to this gem from another PSN client. The account creation date is out of scope here. The user is handling it separately.
 
 ## Goals
 
@@ -54,9 +53,9 @@ In a future milestone it will switch to this gem from `psn-client-ruby`, the cod
 - **A. Extend the gem in its current style (chosen).** Extend `Request` so it can reach other hosts
   and send POST and GraphQL requests. Add `Users` and `Account` classes that return raw parsed
   hashes, as `Trophies` does, and add a `PrivacyError`. It breaks nothing, keeps the gem thin, and
-  reuses endpoints already proven in ai-client and the old backlog manager. The cost is that callers
+  reuses endpoints already proven in other PSN clients and the old backlog manager. The cost is that callers
   parse the responses themselves.
-- **B. Rebuild on ai-client's foundations first.** That means Faraday, typed models, paging and a
+- **B. Rebuild on a fuller client's foundations first.** That means Faraday, typed models, paging and a
   full error hierarchy. It's a better base for full coverage, but it's a breaking rewrite before any
   user data ships. It's also close to merging the two gems, which the user turned down.
 - **C. Creation date only, estimated from trophy or game dates.** Rejected because an estimate isn't
@@ -105,13 +104,13 @@ Constructed with an access token. Methods:
 - Every request sends `User-Agent: psn-client/<version>`. With Net::HTTP's default `Ruby`, the
   search backend answers "Internal server error" (verified live on 2026-11-22). This is the only method that returns a value rather than
   the raw body, because its whole job is the lookup.
-- `profile(online_id:)`: legacy `profile2` on the community host, with the field list from ai-client's
-  `Profiles::PROFILE2_FIELDS`. Returns the `profile` hash. `profile2` rejects `"me"`, so `online_id`
+- `profile(online_id:)`: legacy `profile2` on the community host, with a field list known to work
+  (`PROFILE2_FIELDS`). Returns the `profile` hash. `profile2` rejects `"me"`, so `online_id`
   is required and is validated against `/\A[a-zA-Z0-9_-]{3,16}\z/`, raising `ArgumentError`.
 - `profile_by_account_id(account_id:)`: `/userProfile/v1/internal/users/{id}/profiles`. Rejects
   `"me"`.
 - `played_games(user_id: 'me', limit: 200, offset: 0)`: `/gamelist/v2/users/{id}/titles`. The limit
-  is capped at 200: ai-client verified that 201 returns HTTP 400. Each entry carries
+  is capped at 200: a limit of 201 was verified to return HTTP 400. Each entry carries
   `firstPlayedDateTime`, `lastPlayedDateTime` and `playDuration`.
 
 The `user_id: 'me'` keyword default matches `Trophies`.

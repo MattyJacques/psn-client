@@ -6,8 +6,7 @@ module PSN
   module Client
     # Handles user and account lookups: search, profiles and played games
     class Users
-      # Paths and quirks below were verified live in ai-client, 2026-07, and against
-      # the live API from this gem on 2026-11-22.
+      # Paths and quirks below were verified against the live API on 2026-11-22.
       # Player search is the PlayStation App's persisted GraphQL "context" search. The
       # older REST /search/v1/universalSearch POST is blocked at Sony's edge (Akamai
       # 403 HTML, verified 2026-11-22). The query needs the app's client-name header
