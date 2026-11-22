@@ -94,7 +94,7 @@ users.played_games
 users.played_games(user_id: '1234567890123456789', limit: 50, offset: 0)
 ```
 
-`profile` raises `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `limit` above 200.
+`profile` raises `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `user_id` that is not `'me'` or numeric, or a `limit` above 200.
 
 If a user's privacy settings block the request, Sony responds with HTTP 403 and the client raises `PSN::Client::PrivacyError`, a subclass of `PSN::Client::Error`.
 

@@ -44,6 +44,13 @@ RSpec.describe PSN::Client::Users do
     end
   end
 
+  describe '#account_id without an accountId' do
+    it 'raises Error rather than returning an empty string' do
+      allow(request).to receive(:post).and_return(results(['Foo', nil]))
+      expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
+    end
+  end
+
   describe '#profile' do
     it 'returns the profile hash' do
       params = { 'fields' => described_class::PROFILE2_FIELDS }
@@ -83,6 +90,17 @@ RSpec.describe PSN::Client::Users do
       allow(request).to receive(:get).with('/gamelist/v2/users/9/titles', params: { 'limit' => 5, 'offset' => 10 })
                                      .and_return('titles' => [1])
       expect(users.played_games(user_id: '9', limit: 5, offset: 10)).to eq('titles' => [1])
+    end
+
+    it 'accepts me and numeric user IDs' do
+      allow(request).to receive(:get).and_return({})
+      expect { users.played_games(user_id: 'me') && users.played_games(user_id: '123') }.not_to raise_error
+    end
+
+    it 'rejects user IDs that could alter the path' do
+      ['1/../x', '1?limit=999'].each do |bad|
+        expect { users.played_games(user_id: bad) }.to raise_error(ArgumentError, /invalid PSN user ID/)
+      end
     end
 
     it 'rejects a limit above the maximum' do

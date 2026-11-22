@@ -19,6 +19,7 @@ module PSN
       PLAYED_GAMES_PATH = '/gamelist/v2/users/%s/titles'
       # A limit of 201 returns HTTP 400.
       PLAYED_GAMES_MAX_LIMIT = 200
+      USER_ID_PATTERN = /\A(me|\d+)\z/
       ONLINE_ID_PATTERN = /\A[a-zA-Z0-9_-]{3,16}\z/
 
       def initialize(access_token)
@@ -31,12 +32,10 @@ module PSN
       end
 
       def account_id(online_id)
-        results = search(online_id).dig('domainResponses', 0, 'results') || []
-        match = results.map { |result| result['socialMetadata'] }
-                       .find { |meta| meta&.dig('onlineId')&.casecmp?(online_id) }
-        raise Error, "no PSN account found for #{online_id.inspect}" unless match
+        id = exact_match(online_id)&.dig('accountId').to_s
+        raise Error, "no PSN account found for #{online_id.inspect}" if id.empty?
 
-        match['accountId'].to_s
+        id
       end
 
       def profile(online_id:)
@@ -56,9 +55,18 @@ module PSN
       end
 
       def played_games(user_id: 'me', limit: PLAYED_GAMES_MAX_LIMIT, offset: 0)
+        raise ArgumentError, "invalid PSN user ID: #{user_id.inspect}" unless user_id.to_s.match?(USER_ID_PATTERN)
         raise ArgumentError, "limit must be at most #{PLAYED_GAMES_MAX_LIMIT}" if limit > PLAYED_GAMES_MAX_LIMIT
 
         @request.get(format(PLAYED_GAMES_PATH, user_id), params: { 'limit' => limit, 'offset' => offset })
+      end
+
+      private
+
+      def exact_match(online_id)
+        results = search(online_id).dig('domainResponses', 0, 'results') || []
+        results.map { |result| result['socialMetadata'] }
+               .find { |meta| meta&.dig('onlineId')&.casecmp?(online_id) }
       end
     end
   end

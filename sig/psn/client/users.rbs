@@ -8,6 +8,7 @@ module PSN
       PROFILE_BY_ACCOUNT_PATH: String
       PLAYED_GAMES_PATH: String
       PLAYED_GAMES_MAX_LIMIT: Integer
+      USER_ID_PATTERN: Regexp
       ONLINE_ID_PATTERN: Regexp
 
       @request: Request
@@ -15,9 +16,13 @@ module PSN
       def initialize: (String access_token) -> void
       def search: (String term) -> untyped
       def account_id: (String online_id) -> String
-      def profile: (online_id: String?) -> Hash[String, untyped]
+      def profile: (online_id: String?) -> Hash[String, untyped]?
       def profile_by_account_id: (account_id: String) -> untyped
       def played_games: (?user_id: String, ?limit: Integer, ?offset: Integer) -> untyped
+
+      private
+
+      def exact_match: (String online_id) -> Hash[String, untyped]?
     end
   end
 end

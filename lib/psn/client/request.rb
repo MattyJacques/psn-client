@@ -60,7 +60,7 @@ module PSN
         errors = result['errors'] if result.is_a?(Hash)
         return unless errors.is_a?(Array) && !errors.empty?
 
-        messages = errors.map { |error| error.is_a?(Hash) ? error['message'] : error.to_s }
+        messages = errors.filter_map { |error| error.is_a?(Hash) ? error['message'] : error.to_s }
         raise Error, "PSN GraphQL error: #{messages.join('; ')}"
       end
 
@@ -96,7 +96,8 @@ module PSN
       def privacy_error?(response)
         return false unless response.code == '403'
 
-        error = JSON.parse(response.body)['error']
+        body = JSON.parse(response.body)
+        error = body['error'] if body.is_a?(Hash)
         error = error['message'] if error.is_a?(Hash)
         error.is_a?(String) && error.match?(PRIVACY_PATTERN)
       rescue JSON::ParserError, TypeError

@@ -97,6 +97,39 @@ RSpec.describe PSN::Client::Request do
       end
     end
 
+    context 'when forbidden with an unrelated JSON error' do
+      let(:response) do
+        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden',
+                                            body: '{"error":{"message":"Insufficient scope"}}')
+      end
+
+      it 'raises a plain Error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
+          expect(e).not_to be_a(PSN::Client::PrivacyError)
+        end
+      end
+    end
+
+    context 'when forbidden with a JSON null body' do
+      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: 'null') }
+
+      it 'raises a plain Error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 403/) do |e|
+          expect(e).not_to be_a(PSN::Client::PrivacyError)
+        end
+      end
+    end
+
+    context 'when forbidden with a non-Hash, non-String error' do
+      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '{"error":42}') }
+
+      it 'raises a plain Error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
+          expect(e).not_to be_a(PSN::Client::PrivacyError)
+        end
+      end
+    end
+
     context 'when request fails' do
       let(:response) { instance_double(Net::HTTPNotFound, body: 'Not Found', code: '404', message: 'Not Found') }
 
@@ -193,6 +226,19 @@ RSpec.describe PSN::Client::Request do
       it 'raises Error' do
         expect { request_service.graphql('op', {}, 'h') }
           .to raise_error(PSN::Client::Error, 'PSN GraphQL error: bad; worse')
+      end
+    end
+
+    context 'when an error has no message' do
+      let(:response) do
+        res = Net::HTTPSuccess.new(1.1, '200', 'OK')
+        allow(res).to receive(:body).and_return('{"errors":[{"message":"bad"},{}]}')
+        res
+      end
+
+      it 'omits the empty segment' do
+        expect { request_service.graphql('op', {}, 'h') }
+          .to raise_error(PSN::Client::Error, 'PSN GraphQL error: bad')
       end
     end
 

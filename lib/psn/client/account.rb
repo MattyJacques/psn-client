@@ -10,6 +10,7 @@ module PSN
       DEVICES_PATH = '/api/v1/devices/accounts/me'
       DEVICES_PARAMS = { 'includeFields' => 'device,systemData', 'platform' => 'PS5,PS4,PS3,PSVita' }.freeze
       LIBRARY_OPERATION = 'getUserGameList'
+      # Persisted query hash (and categories below) verified live in ai-client, 2026-07.
       LIBRARY_HASH = 'e0136f81d7d1fb6be58238c574e9a46e1c0cc2f7f6977a08a5a46f224523a004'
       LIBRARY_CATEGORIES = 'ps4_game,ps5_native_game'
       # A limit above 100 is rejected by Sony; cap verified live in ai-client, 2026-07.
@@ -21,6 +22,7 @@ module PSN
         'isActive' => true, 'platform' => %w[ps4 ps5], 'sortBy' => 'ACTIVE_DATE', 'sortDirection' => 'desc'
       }.freeze
       SUMMARY_OPERATION = 'getProfileOracle'
+      # Persisted query hash verified live in ai-client, 2026-07.
       SUMMARY_HASH = 'fc0d765f537f3dce3e0d91c71e85daa401042ba43066acde9f8f584faced10df'
       # Without this header the call returns HTTP 400 "Cannot query field" (verified live in ai-client, 2026-07-11).
       SUMMARY_HEADERS = { 'apollographql-client-name' => 'oracle' }.freeze
