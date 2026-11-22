@@ -50,7 +50,14 @@ if account_id
   end
 end
 
-check('Users#played_games') { "#{users.played_games(limit: 5)['titles']&.size.to_i} titles" }
+check('Users#played_games') do
+  body = users.played_games
+  "#{body['titles']&.size.to_i} titles in first page (#{body['totalItemCount'].inspect} in total)"
+end
 check('Account#devices') { "keys: #{account.devices.keys.join(', ')}" }
-check('Account#library') { "keys: #{account.library(limit: 5)['data']&.keys&.join(', ')}" }
-check('Account#purchased_games') { "keys: #{account.purchased_games(size: 5)['data']&.keys&.join(', ')}" }
+check('Account#library') do
+  "#{account.library.dig('data', 'gameLibraryTitlesRetrieve', 'games')&.size.to_i} games (limit 100, no paging)"
+end
+check('Account#purchased_games') do
+  "#{account.purchased_games.dig('data', 'purchasedTitlesRetrieve', 'games')&.size.to_i} games in first page (size 200)"
+end
