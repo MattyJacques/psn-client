@@ -229,7 +229,8 @@ end
 - Consumes: `Request#get(path, host:, params:)`, `Request#post(path, body)`, `Error`
 - Produces:
   - `Users.new(access_token)`
-  - `#account_id(online_id) -> String`
+  - `#search(term) -> untyped`: the raw universalSearch body
+  - `#account_id(online_id) -> String`: built on `search`
   - `#profile(online_id:) -> Hash`
   - `#profile_by_account_id(account_id:) -> untyped`
   - `#played_games(user_id: 'me', limit: 200, offset: 0) -> untyped`
@@ -248,6 +249,12 @@ end
   `instance_double(PSN::Client::Request)`, the way `trophies_spec.rb` does. Assert the exact arguments:
 
 ```ruby
+# #search
+it 'returns the raw search response, near-matches included' do
+  allow(request).to receive(:post).with('/search/v1/universalSearch', search_body).and_return(results(%w[Foo_Bar 1]))
+  expect(users.search('Foo')).to eq(results(%w[Foo_Bar 1]))
+end
+
 # #account_id
 let(:search_body) { { 'searchTerm' => 'Foo', 'domainRequests' => [{ 'domain' => 'SocialAllAccounts' }] } }
 def results(*ids) = { 'domainResponses' => [{ 'results' => ids.map { |id, acc| { 'socialMetadata' => { 'onlineId' => id, 'accountId' => acc } } } }] }
@@ -293,7 +300,8 @@ it('rejects nil')     { expect { users.profile(online_id: nil) }.to raise_error(
   - `profile` validates against `ONLINE_ID_PATTERN` and raises
     `ArgumentError, "invalid PSN online ID: #{online_id.inspect}"`. Guard against `nil` before calling
     `match?`.
-  - `account_id` uses `dig('domainResponses', 0, 'results') || []`, then `find` with `casecmp?`.
+  - `search` posts the body and returns it untouched.
+  - `account_id` calls `search`, then uses `dig('domainResponses', 0, 'results') || []`, then `find` with `casecmp?`.
     Add the RBS file.
 
 - [ ] **Step 4: Run the full suite.**
@@ -301,7 +309,7 @@ it('rejects nil')     { expect { users.profile(online_id: nil) }.to raise_error(
   Expected: it passes with no offences.
 
 - [ ] **Step 5: Commit.**
-  `git add lib sig spec && git commit -m "Add Users requests: account ID lookup, profiles, played games"`
+  `git add lib sig spec && git commit -m "Add Users requests: search, account ID lookup, profiles, played games"`
 
 ### Task 4: `PSN::Client::Account`
 
@@ -385,7 +393,8 @@ end
   failure doesn't stop the rest:
   - calls `Account#summary` and prints the online ID and account ID from
     `data.oracleUserProfileRetrieve`
-  - calls `Users#account_id` with that online ID and prints whether it matches
+  - calls `Users#search` and `Users#account_id` with that online ID, and prints the result count and
+    whether the ID matches
   - calls `Users#profile`, `Users#profile_by_account_id`, `Users#played_games(limit: 5)`,
     `Account#devices`, `Account#library(limit: 5)` and `Account#purchased_games(size: 5)`
   - prints a one-line count or key summary for each, and `FAILED: <class>: <message>` for any error

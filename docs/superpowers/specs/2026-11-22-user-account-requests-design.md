@@ -22,7 +22,7 @@ In a future milestone it will switch to this gem from `psn-client-ruby`, the cod
 
 - Typed models, lazy pagination, token refresh, or a switch to Faraday. Those belong to a later
   rework, if one happens.
-- Social calls (friends, presence, blocks), search, store, and media. These come later, towards
+- Social calls (friends, presence, blocks), GraphQL (paged) search, store, and media. These come later, towards
   "cover all requests".
 - Changes to re-earn.
 - The account creation date. The user is handling it separately.
@@ -93,7 +93,11 @@ In a future milestone it will switch to this gem from `psn-client-ruby`, the cod
 
 Constructed with an access token. Methods:
 
-- `account_id(online_id)`: POST to `/search/v1/universalSearch` with
+- `search(term)`: POST to `/search/v1/universalSearch` with
+  `{"searchTerm": term, "domainRequests": [{"domain": "SocialAllAccounts"}]}`. Returns Sony's raw
+  response, near-matches included, so callers can choose for themselves. It returns a single page;
+  paged search uses the GraphQL queries, which come later. (Added at the user's request.)
+- `account_id(online_id)`: calls `search(online_id)`, the same POST with
   `{"searchTerm": online_id, "domainRequests": [{"domain": "SocialAllAccounts"}]}`. It finds the
   result whose `socialMetadata.onlineId` matches case-insensitively and returns its `accountId`.
   It raises `Error` if there's no match. This is the only method that returns a value rather than
