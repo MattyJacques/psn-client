@@ -6,9 +6,17 @@ module PSN
   module Client
     # Handles user and account lookups: search, profiles and played games
     class Users
-      # Paths and quirks below were verified live in ai-client, 2026-07.
-      SEARCH_PATH = '/search/v1/universalSearch'
-      SEARCH_DOMAIN = 'SocialAllAccounts'
+      # Paths and quirks below were verified live in ai-client, 2026-07, and against
+      # the live API from this gem on 2026-11-22.
+      # Player search is the PlayStation App's persisted GraphQL "context" search. The
+      # older REST /search/v1/universalSearch POST is blocked at Sony's edge (Akamai
+      # 403 HTML, verified 2026-11-22). The query needs the app's client-name header
+      # and a displayTitleLocale variable. It returns the first page of results only.
+      SEARCH_OPERATION = 'metGetContextSearchResults'
+      SEARCH_HASH = 'ac5fb2b82c4d086ca0d272fba34418ab327a7762dd2cd620e63f175bbc5aff10'
+      SEARCH_CONTEXT = 'MobileUniversalSearchSocial'
+      SEARCH_LOCALE = 'en-US'
+      SEARCH_HEADERS = { 'apollographql-client-name' => 'PlayStationApp-Android' }.freeze
       PROFILE2_PATH = '/userProfile/v1/users/%s/profile2'
       PROFILE2_FIELDS = 'npId,onlineId,accountId,avatarUrls,plus,aboutMe,languagesUsed,' \
                         'trophySummary(@default,level,progress,earnedTrophies),' \
@@ -27,12 +35,14 @@ module PSN
       end
 
       def search(term)
-        body = { 'searchTerm' => term, 'domainRequests' => [{ 'domain' => SEARCH_DOMAIN }] }
-        @request.post(SEARCH_PATH, body)
+        variables = { 'searchTerm' => term, 'searchContext' => SEARCH_CONTEXT, 'displayTitleLocale' => SEARCH_LOCALE }
+        @request.graphql(SEARCH_OPERATION, variables, SEARCH_HASH, headers: SEARCH_HEADERS)
       end
 
+      # Exact lookup via the profile, which carries the numeric account ID. Search is
+      # not used: it is fuzzy, and it leaves the authenticated account out of results.
       def account_id(online_id)
-        id = exact_match(online_id)&.dig('accountId').to_s
+        id = profile(online_id: online_id)&.dig('accountId').to_s
         raise Error, "no PSN account found for #{online_id.inspect}" if id.empty?
 
         id
@@ -59,14 +69,6 @@ module PSN
         raise ArgumentError, "limit must be at most #{PLAYED_GAMES_MAX_LIMIT}" if limit > PLAYED_GAMES_MAX_LIMIT
 
         @request.get(format(PLAYED_GAMES_PATH, user_id), params: { 'limit' => limit, 'offset' => offset })
-      end
-
-      private
-
-      def exact_match(online_id)
-        results = search(online_id).dig('domainResponses', 0, 'results') || []
-        results.map { |result| result['socialMetadata'] }
-               .find { |meta| meta&.dig('onlineId')&.casecmp?(online_id) }
       end
     end
   end

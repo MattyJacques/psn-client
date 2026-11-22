@@ -7,47 +7,46 @@ RSpec.describe PSN::Client::Users do
 
   let(:access_token) { 'access_token' }
   let(:request) { instance_double(PSN::Client::Request) }
-  let(:search_path) { '/search/v1/universalSearch' }
-  let(:search_body) { { 'searchTerm' => 'Foo', 'domainRequests' => [{ 'domain' => 'SocialAllAccounts' }] } }
 
   before do
     allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
   end
 
-  def results(*ids)
-    entries = ids.map { |id, acc| { 'socialMetadata' => { 'onlineId' => id, 'accountId' => acc } } }
-    { 'domainResponses' => [{ 'results' => entries }] }
-  end
-
   describe '#search' do
-    it 'returns the raw search response, near-matches included' do
-      allow(request).to receive(:post).with(search_path, search_body).and_return(results(%w[Foo_Bar 1]))
-      expect(users.search('Foo')).to eq(results(%w[Foo_Bar 1]))
+    let(:variables) do
+      { 'searchTerm' => 'Foo', 'searchContext' => 'MobileUniversalSearchSocial', 'displayTitleLocale' => 'en-US' }
+    end
+    let(:headers) { { 'apollographql-client-name' => 'PlayStationApp-Android' } }
+
+    it 'returns the raw GraphQL search response' do
+      allow(request).to receive(:graphql).with('metGetContextSearchResults', variables,
+                                               described_class::SEARCH_HASH, headers: headers)
+                                         .and_return('data' => {})
+      expect(users.search('Foo')).to eq('data' => {})
     end
   end
 
   describe '#account_id' do
-    it 'returns the account ID of the case-insensitive exact match' do
-      allow(request).to receive(:post).with(search_path, search_body)
-                                      .and_return(results(%w[Foo_Bar 1], %w[foo 2]))
+    let(:profile_params) { { host: :community, params: { 'fields' => described_class::PROFILE2_FIELDS } } }
+
+    it 'returns the account ID from the profile' do
+      allow(request).to receive(:get).with('/userProfile/v1/users/Foo/profile2', **profile_params)
+                                     .and_return('profile' => { 'accountId' => '2' })
       expect(users.account_id('Foo')).to eq('2')
     end
 
-    it 'raises Error when only a near-match comes back' do
-      allow(request).to receive(:post).and_return(results(%w[Foo_Bar 1]))
+    it 'raises Error when the profile has no accountId' do
+      allow(request).to receive(:get).and_return('profile' => {})
       expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
     end
 
-    it 'raises Error when domainResponses is missing' do
-      allow(request).to receive(:post).and_return({})
+    it 'raises Error when the response has no profile' do
+      allow(request).to receive(:get).and_return({})
       expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
     end
-  end
 
-  describe '#account_id without an accountId' do
-    it 'raises Error rather than returning an empty string' do
-      allow(request).to receive(:post).and_return(results(['Foo', nil]))
-      expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
+    it 'rejects an invalid online ID' do
+      expect { users.account_id('me') }.to raise_error(ArgumentError)
     end
   end
 

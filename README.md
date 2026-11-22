@@ -77,10 +77,12 @@ trophies.earned_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
 ```ruby
 users = PSN::Client::Users.new(access_token)
 
-# Search for accounts by online ID (raw universal search response)
-users.search('example_user')
+# Search for players (raw GraphQL response, first page only; near-matches included)
+results = users.search('example')
+results.dig('data', 'universalContextSearch', 'results')
 
-# Resolve an online ID to an account ID string (raises PSN::Client::Error if not found)
+# Resolve an online ID to an account ID string, via the profile
+# (raises PSN::Client::Error if not found, ArgumentError for an invalid online ID)
 users.account_id('example_user')
 
 # Profile for an online ID (returns the "profile" hash)
@@ -94,7 +96,7 @@ users.played_games
 users.played_games(user_id: '1234567890123456789', limit: 50, offset: 0)
 ```
 
-`profile` raises `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `user_id` that is not `'me'` or numeric, or a `limit` above 200.
+`profile` and `account_id` raise `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `user_id` that is not `'me'` or numeric, or a `limit` above 200.
 
 If a user's privacy settings block the request, Sony responds with HTTP 403 and the client raises `PSN::Client::PrivacyError`, a subclass of `PSN::Client::Error`.
 

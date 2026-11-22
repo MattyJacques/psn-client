@@ -32,6 +32,12 @@ RSpec.describe PSN::Client::Request do
       expect(captured_requests.last).to have_attributes(path: '/api/test', method: 'GET')
     end
 
+    it 'identifies the gem in the User-Agent' do
+      request_service.get('/test')
+
+      expect(captured_requests.last['User-Agent']).to eq("psn-client/#{PSN::Client::VERSION}")
+    end
+
     it 'parses the response' do
       expect(request_service.get('/test')).to eq({ 'key' => 'value' })
     end

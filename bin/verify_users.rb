@@ -32,8 +32,10 @@ end
 
 if online_id
   check('Users#search') do
-    results = users.search(online_id).dig('domainResponses', 0, 'results') || []
-    "#{results.size} results"
+    # Search leaves out the signed-in account, so search a prefix of its online ID.
+    results = users.search(online_id[0, 4]).dig('data', 'universalContextSearch', 'results') || []
+    social = results.find { |r| r['domain'] == 'SocialAllAccounts' } || {}
+    "#{(social['searchResults'] || []).size} results"
   end
   check('Users#account_id') do
     found = users.account_id(online_id)

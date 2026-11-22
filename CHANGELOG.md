@@ -5,6 +5,7 @@
 - Added `PSN::Client::Account` with `devices`, `library`, `purchased_games` and `summary`
 - Added `PSN::Client::PrivacyError`, raised when a user's privacy settings block a request
 - Added multi-host, POST and persisted-query GraphQL support to `Request`
+- `Request` now sends `User-Agent: psn-client/<version>` on every request (Sony's search backend rejects Net::HTTP's default `Ruby`)
 
 ## [0.1.0] - 2026-03-14
 

@@ -93,14 +93,17 @@ In a future milestone it will switch to this gem from `psn-client-ruby`, the cod
 
 Constructed with an access token. Methods:
 
-- `search(term)`: POST to `/search/v1/universalSearch` with
-  `{"searchTerm": term, "domainRequests": [{"domain": "SocialAllAccounts"}]}`. Returns Sony's raw
-  response, near-matches included, so callers can choose for themselves. It returns a single page;
-  paged search uses the GraphQL queries, which come later. (Added at the user's request.)
-- `account_id(online_id)`: calls `search(online_id)`, the same POST with
-  `{"searchTerm": online_id, "domainRequests": [{"domain": "SocialAllAccounts"}]}`. It finds the
-  result whose `socialMetadata.onlineId` matches case-insensitively and returns its `accountId`.
-  It raises `Error` if there's no match. This is the only method that returns a value rather than
+- `search(term)`: the PlayStation App's persisted GraphQL query `metGetContextSearchResults`
+  (users context `MobileUniversalSearchSocial`, `displayTitleLocale: 'en-US'`, header
+  `apollographql-client-name: PlayStationApp-Android`). Returns Sony's raw response, near-matches
+  included, first page only. (Added at the user's request.)
+  *Changed after the live check on 2026-11-22:* the REST `POST /search/v1/universalSearch`
+  originally planned here is blocked at Sony's edge (Akamai 403 HTML).
+- `account_id(online_id)`: reads `accountId` from `profile(online_id:)`, an exact lookup. It raises
+  `Error` if there's no account ID. *Changed after the live check:* it was originally built on
+  search, but search is fuzzy and leaves out the signed-in account.
+- Every request sends `User-Agent: psn-client/<version>`. With Net::HTTP's default `Ruby`, the
+  search backend answers "Internal server error" (verified live on 2026-11-22). This is the only method that returns a value rather than
   the raw body, because its whole job is the lookup.
 - `profile(online_id:)`: legacy `profile2` on the community host, with the field list from ai-client's
   `Profiles::PROFILE2_FIELDS`. Returns the `profile` hash. `profile2` rejects `"me"`, so `online_id`

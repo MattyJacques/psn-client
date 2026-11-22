@@ -2,6 +2,7 @@
 
 require 'net/http'
 require 'json'
+require_relative 'version'
 
 module PSN
   module Client
@@ -16,6 +17,10 @@ module PSN
       BASE_URL = HOSTS[:mobile]
       GRAPHQL_PATH = '/graphql/v1/op'
       PRIVACY_PATTERN = /access control|privacy/i
+      # Sony's search backend answers HTTP 200 with "Internal server error" when the
+      # User-Agent is Net::HTTP's default "Ruby" (verified live 2026-11-22), so every
+      # request identifies the gem instead.
+      USER_AGENT = "psn-client/#{VERSION}".freeze
 
       def initialize(access_token)
         @access_token = access_token
@@ -52,6 +57,7 @@ module PSN
 
       def authorize(request, headers)
         request['Authorization'] = "Bearer #{@access_token}"
+        request['User-Agent'] = USER_AGENT
         headers.each { |name, value| request[name] = value }
         request
       end

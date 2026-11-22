@@ -1,8 +1,11 @@
 module PSN
   module Client
     class Users
-      SEARCH_PATH: String
-      SEARCH_DOMAIN: String
+      SEARCH_OPERATION: String
+      SEARCH_HASH: String
+      SEARCH_CONTEXT: String
+      SEARCH_LOCALE: String
+      SEARCH_HEADERS: Hash[String, String]
       PROFILE2_PATH: String
       PROFILE2_FIELDS: String
       PROFILE_BY_ACCOUNT_PATH: String
@@ -19,10 +22,6 @@ module PSN
       def profile: (online_id: String?) -> Hash[String, untyped]?
       def profile_by_account_id: (account_id: String) -> untyped
       def played_games: (?user_id: String, ?limit: Integer, ?offset: Integer) -> untyped
-
-      private
-
-      def exact_match: (String online_id) -> Hash[String, untyped]?
     end
   end
 end
