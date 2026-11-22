@@ -36,6 +36,67 @@ RSpec.describe PSN::Client::Request do
       expect(request_service.get('/test')).to eq({ 'key' => 'value' })
     end
 
+    it 'leaves a legacy path with its own query untouched' do
+      request_service.get('/trophy?limit=1')
+      expect(captured_requests.last.path).to eq('/api/trophy?limit=1')
+    end
+
+    it 'URL-encodes params' do
+      request_service.get('/x', params: { 'fields' => 'a,b(c)', 'n' => 1 })
+      expect(captured_requests.last.path).to eq('/api/x?fields=a%2Cb%28c%29&n=1')
+    end
+
+    it 'appends params to a path that already has a query' do
+      request_service.get('/x?a=1', params: { 'b' => 2 })
+      expect(captured_requests.last.path).to eq('/api/x?a=1&b=2')
+    end
+
+    it 'targets another host' do
+      request_service.get('/userProfile/v1/users/abc/profile2', host: :community)
+      expect(Net::HTTP).to have_received(:start).with('us-prof.np.community.playstation.net', 443, use_ssl: true)
+      expect(captured_requests.last.path).to eq('/userProfile/v1/users/abc/profile2')
+    end
+
+    it 'raises KeyError for an unknown host' do
+      expect { request_service.get('/x', host: :nope) }.to raise_error(KeyError)
+    end
+
+    it 'sends extra headers' do
+      request_service.get('/x', headers: { 'apollographql-client-name' => 'oracle' })
+      expect(captured_requests.last['apollographql-client-name']).to eq('oracle')
+    end
+
+    context 'when forbidden by access control' do
+      let(:response) do
+        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden',
+                                            body: '{"error":{"message":"Not permitted by access control"}}')
+      end
+
+      it 'raises PrivacyError' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::PrivacyError, /Request failed: 403/)
+      end
+    end
+
+    context 'when forbidden with a string error mentioning privacy' do
+      let(:response) do
+        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '{"error":"Privacy settings"}')
+      end
+
+      it 'raises PrivacyError' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::PrivacyError)
+      end
+    end
+
+    context 'when forbidden with a non-JSON body' do
+      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '<html>') }
+
+      it 'raises a plain Error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
+          expect(e).not_to be_a(PSN::Client::PrivacyError)
+        end
+      end
+    end
+
     context 'when request fails' do
       let(:response) { instance_double(Net::HTTPNotFound, body: 'Not Found', code: '404', message: 'Not Found') }
 

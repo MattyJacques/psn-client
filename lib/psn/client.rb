@@ -10,6 +10,7 @@ require 'net/http'
 module PSN
   module Client
     class Error < StandardError; end
+    class PrivacyError < Error; end
     # Your code goes here...
   end
 end
