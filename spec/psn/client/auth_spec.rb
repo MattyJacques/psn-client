@@ -33,12 +33,17 @@ RSpec.describe PSN::Client::Auth do
         .to eq("#{described_class::DEFAULT_CLIENT_ID}:ucPjka5tntB2KqsP")
     end
 
-    it 'uses the default client ID when PSN_CLIENT_ID is unset' do
-      allow(ENV).to receive(:fetch).and_call_original
-      allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', anything) { |_key, default| default }
-      allow(OAuth2::Client).to receive(:new).and_call_original
-      described_class.new.send(:client)
-      expect(OAuth2::Client).to have_received(:new).with(described_class::DEFAULT_CLIENT_ID, '', anything)
+    context 'when PSN_CLIENT_ID is unset' do
+      before do
+        allow(ENV).to receive(:fetch).and_call_original
+        allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', anything) { |_key, default| default }
+        allow(OAuth2::Client).to receive(:new).and_call_original
+      end
+
+      it 'uses the default client ID' do
+        described_class.new.send(:client)
+        expect(OAuth2::Client).to have_received(:new).with(described_class::DEFAULT_CLIENT_ID, '', anything)
+      end
     end
   end
 

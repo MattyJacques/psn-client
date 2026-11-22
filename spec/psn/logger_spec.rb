@@ -19,12 +19,14 @@ RSpec.describe 'Logger' do
     end
 
     context 'when in a Rails environment' do
-      it 'returns Rails.logger when Rails is defined' do
-        buffer = StringIO.new
-        rails_logger = Logger.new(buffer)
+      let(:rails_logger) { Logger.new(StringIO.new) }
+
+      before do
         stub_const('Rails', Module.new)
         allow(Rails).to receive(:logger).and_return(rails_logger)
+      end
 
+      it 'returns Rails.logger when Rails is defined' do
         expect(PSN.logger).to equal(rails_logger)
       end
     end
