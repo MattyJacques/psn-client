@@ -18,43 +18,60 @@ RSpec.describe PSN::Client::Users do
     end
     let(:headers) { { 'apollographql-client-name' => 'PlayStationApp-Android' } }
 
-    it 'returns the raw GraphQL search response' do
+    before do
       allow(request).to receive(:graphql).with('metGetContextSearchResults', variables,
                                                described_class::SEARCH_HASH, headers: headers)
                                          .and_return('data' => {})
+    end
+
+    it 'returns the raw GraphQL search response' do
       expect(users.search('Foo')).to eq('data' => {})
     end
   end
 
   describe '#account_id' do
     let(:profile_params) { { host: :community, params: { 'fields' => described_class::PROFILE2_FIELDS } } }
+    let(:response) { { 'profile' => { 'accountId' => '2' } } }
+
+    before do
+      allow(request).to receive(:get).with('/userProfile/v1/users/Foo/profile2', **profile_params)
+                                     .and_return(response)
+    end
 
     it 'returns the account ID from the profile' do
-      allow(request).to receive(:get).with('/userProfile/v1/users/Foo/profile2', **profile_params)
-                                     .and_return('profile' => { 'accountId' => '2' })
       expect(users.account_id('Foo')).to eq('2')
-    end
-
-    it 'raises Error when the profile has no accountId' do
-      allow(request).to receive(:get).and_return('profile' => {})
-      expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
-    end
-
-    it 'raises Error when the response has no profile' do
-      allow(request).to receive(:get).and_return({})
-      expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
     end
 
     it 'rejects an invalid online ID' do
       expect { users.account_id('me') }.to raise_error(ArgumentError)
     end
+
+    context 'when the profile has no accountId' do
+      let(:response) { { 'profile' => {} } }
+
+      it 'raises Error' do
+        expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
+      end
+    end
+
+    context 'when the response has no profile' do
+      let(:response) { {} }
+
+      it 'raises Error' do
+        expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
+      end
+    end
   end
 
   describe '#profile' do
+    before do
+      allow(request).to receive(:get)
+        .with('/userProfile/v1/users/Foo/profile2', host: :community,
+                                                    params: { 'fields' => described_class::PROFILE2_FIELDS })
+        .and_return('profile' => { 'onlineId' => 'Foo' })
+    end
+
     it 'returns the profile hash' do
-      params = { 'fields' => described_class::PROFILE2_FIELDS }
-      allow(request).to receive(:get).with('/userProfile/v1/users/Foo/profile2', host: :community, params: params)
-                                     .and_return('profile' => { 'onlineId' => 'Foo' })
       expect(users.profile(online_id: 'Foo')).to eq('onlineId' => 'Foo')
     end
 
@@ -68,8 +85,11 @@ RSpec.describe PSN::Client::Users do
   end
 
   describe '#profile_by_account_id' do
-    it 'returns the body' do
+    before do
       allow(request).to receive(:get).with('/userProfile/v1/internal/users/123/profiles').and_return('a' => 1)
+    end
+
+    it 'returns the body' do
       expect(users.profile_by_account_id(account_id: '123')).to eq('a' => 1)
     end
 
@@ -79,21 +99,32 @@ RSpec.describe PSN::Client::Users do
   end
 
   describe '#played_games' do
-    it 'requests the defaults' do
-      allow(request).to receive(:get).with('/gamelist/v2/users/me/titles', params: { 'limit' => 200, 'offset' => 0 })
-                                     .and_return('titles' => [])
+    before do
+      allow(request).to receive(:get).and_return('titles' => [])
+    end
+
+    it 'returns the body' do
       expect(users.played_games).to eq('titles' => [])
     end
 
-    it 'passes user_id, limit and offset through' do
-      allow(request).to receive(:get).with('/gamelist/v2/users/9/titles', params: { 'limit' => 5, 'offset' => 10 })
-                                     .and_return('titles' => [1])
-      expect(users.played_games(user_id: '9', limit: 5, offset: 10)).to eq('titles' => [1])
+    it 'requests the defaults' do
+      users.played_games
+      expect(request).to have_received(:get)
+        .with('/gamelist/v2/users/me/titles', params: { 'limit' => 200, 'offset' => 0 })
     end
 
-    it 'accepts me and numeric user IDs' do
-      allow(request).to receive(:get).and_return({})
-      expect { users.played_games(user_id: 'me') && users.played_games(user_id: '123') }.not_to raise_error
+    it 'passes user_id, limit and offset through' do
+      users.played_games(user_id: '9', limit: 5, offset: 10)
+      expect(request).to have_received(:get)
+        .with('/gamelist/v2/users/9/titles', params: { 'limit' => 5, 'offset' => 10 })
+    end
+
+    it 'accepts me' do
+      expect { users.played_games(user_id: 'me') }.not_to raise_error
+    end
+
+    it 'accepts a numeric user ID' do
+      expect { users.played_games(user_id: '123') }.not_to raise_error
     end
 
     it 'rejects user IDs that could alter the path' do
