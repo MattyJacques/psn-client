@@ -87,4 +87,24 @@ RSpec.describe PSN::Client::Account do
       expect(account.summary).to eq(body)
     end
   end
+
+  context 'with an injected request' do
+    subject(:injected) { described_class.new(request: request) }
+
+    before do
+      allow(PSN::Client::Request).to receive(:new)
+      allow(request).to receive(:get).and_return('ok')
+    end
+
+    it 'uses it without building a Request' do
+      expect(injected.devices).to eq('ok')
+      expect(request).to have_received(:get)
+        .with(described_class::DEVICES_PATH, host: :dms, params: described_class::DEVICES_PARAMS)
+      expect(PSN::Client::Request).not_to have_received(:new)
+    end
+
+    it 'requires an access token or a request' do
+      expect { described_class.new }.to raise_error(ArgumentError, /access token or a request/)
+    end
+  end
 end

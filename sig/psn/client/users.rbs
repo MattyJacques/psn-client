@@ -18,7 +18,7 @@ module PSN
 
       @request: Request
 
-      def initialize: (String access_token) -> void
+      def initialize: (?String? access_token, ?request: Request?) -> void
       def search: (String term) -> untyped
       def account_id: (String online_id) -> String
       def profile: (online_id: String) -> Hash[String, untyped]?

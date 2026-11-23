@@ -23,8 +23,18 @@ module PSN
       # request identifies the gem instead.
       USER_AGENT = "psn-client/#{VERSION}".freeze
 
-      def initialize(access_token)
+      # Returns the injected request object, or builds one from the access token.
+      def self.for(access_token, request = nil)
+        return request if request
+        raise ArgumentError, 'an access token or a request object is required' if access_token.nil?
+
+        new(access_token)
+      end
+
+      # Timeouts are in seconds; nil keeps Net::HTTP's default.
+      def initialize(access_token, open_timeout: nil, read_timeout: nil)
         @access_token = access_token
+        @http_options = { use_ssl: true, open_timeout: open_timeout, read_timeout: read_timeout }.compact
       end
 
       def get(path, host: :mobile, params: {}, headers: {})
@@ -90,7 +100,7 @@ module PSN
 
       # Returns the parsed body and the raw response.
       def perform(uri, http_request)
-        response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
+        response = Net::HTTP.start(uri.hostname, uri.port, **@http_options) do |http|
           http.request(http_request)
         end
 

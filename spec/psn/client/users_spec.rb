@@ -164,4 +164,23 @@ RSpec.describe PSN::Client::Users do
       end
     end
   end
+
+  context 'with an injected request' do
+    subject(:injected) { described_class.new(request: request) }
+
+    before do
+      allow(PSN::Client::Request).to receive(:new)
+      allow(request).to receive(:get).and_return('ok')
+    end
+
+    it 'uses it without building a Request' do
+      expect(injected.profile_by_account_id(account_id: '1')).to eq('ok')
+      expect(request).to have_received(:get).with('/userProfile/v1/internal/users/1/profiles')
+      expect(PSN::Client::Request).not_to have_received(:new)
+    end
+
+    it 'requires an access token or a request' do
+      expect { described_class.new }.to raise_error(ArgumentError, /access token or a request/)
+    end
+  end
 end

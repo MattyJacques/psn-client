@@ -18,7 +18,7 @@ module PSN
 
       @request: Request
 
-      def initialize: (String access_token) -> void
+      def initialize: (?String? access_token, ?request: Request?) -> void
       def devices: () -> untyped
       def library: (?limit: Integer) -> untyped
       def purchased_games: (?size: Integer, ?start: Integer) -> untyped

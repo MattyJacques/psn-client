@@ -6,8 +6,10 @@ module PSN
   module Client
     # Handles trophy-related API requests
     class Trophies
-      def initialize(access_token)
-        @request = Request.new(access_token)
+      # Pass an access token, or `request:` to inject a Request (or any object
+      # responding to the same methods) instead of building one.
+      def initialize(access_token = nil, request: nil)
+        @request = Request.for(access_token, request)
       end
 
       def trophy_titles(user_id: 'me', limit: 800, offset: 0)

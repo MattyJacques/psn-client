@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+- `Auth.authenticate` and `Auth.new` accept `npsso:`, `client_id:` and `basic_token:`. The `PSN_*` environment variables remain the defaults
+- `PSN_BASIC_TOKEN` is now read when authenticating instead of once when the gem loads, so setting it after `require` takes effect
+- **Breaking:** removed the `Auth::BASIC_TOKEN` constant. Use `Auth::DEFAULT_BASIC_TOKEN`, or pass `basic_token:`
+- `Trophies`, `Users` and `Account` accept `request:` to inject a request object in place of an access token
+- `Request.new` accepts `open_timeout:` and `read_timeout:`
+- Added `PSN::Client::Session`, which shares one request across `trophies`, `users` and `account`, with `Session.authenticate` to build one from credentials
 - **Breaking:** `Auth.authenticate` raises `PSN::Client::AuthenticationError` (or `TransportError`) instead of `RuntimeError`. Code rescuing `RuntimeError` must rescue `PSN::Client::Error` or a subclass
 - **Breaking:** an API response of HTTP 401 raises `PSN::Client::AuthenticationError`, and GraphQL errors raise `PSN::Client::GraphQLError`. Both are still `PSN::Client::Error` subclasses
 - Added structured errors: `PSN::Client::Error` now exposes `status`, `headers` and `body`, and new subclasses `AuthenticationError` (`error_code`), `RateLimitError` (`retry_at`), `GraphQLError` (`errors`, `data`), `TransportError` and `ParseError` cover authentication, HTTP 429, GraphQL, network and invalid-JSON failures

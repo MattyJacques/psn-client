@@ -26,7 +26,7 @@ Authentication only needs your NPSSO token. To get it, sign in at playstation.co
 |---|---|---|
 | `PSN_NPSSO` | Yes | Your NPSSO token |
 | `PSN_CLIENT_ID` | No | The PSN OAuth2 client ID. Defaults to the PlayStation app's public client (`PSN::Client::Auth::DEFAULT_CLIENT_ID`) |
-| `PSN_BASIC_TOKEN` | No | The base64-encoded `client_id:client_secret`. Defaults to the PlayStation app's (`PSN::Client::Auth::DEFAULT_BASIC_TOKEN`). It is read once, when the gem loads |
+| `PSN_BASIC_TOKEN` | No | The base64-encoded `client_id:client_secret`. Defaults to the PlayStation app's (`PSN::Client::Auth::DEFAULT_BASIC_TOKEN`). |
 
 The defaults are the same values listed in the [PSN API documentation](https://andshrew.github.io/PlayStation-Trophies/APIv2.html) and the bundled [API reference](docs/andshrew/APIv2.md). If you override `PSN_CLIENT_ID`, override `PSN_BASIC_TOKEN` to match.
 
@@ -39,6 +39,39 @@ access_token = PSN::Client::Auth.authenticate
 ```
 
 `authenticate` exchanges your NPSSO token for a short-lived PSN access token string.
+
+The environment variables are only defaults. Pass credentials explicitly to use different ones per call, for example one NPSSO per user:
+
+```ruby
+access_token = PSN::Client::Auth.authenticate(npsso: user.npsso)
+# client_id: and basic_token: can be passed the same way
+```
+
+### Sessions
+
+`PSN::Client::Session` shares one access token and one HTTP request object across the API classes described below:
+
+```ruby
+session = PSN::Client::Session.authenticate              # or .authenticate(npsso: '...')
+session = PSN::Client::Session.new(access_token)         # from a token you already have
+
+session.trophies.trophy_summary
+session.users.profile(online_id: 'example_user')
+session.account.devices
+```
+
+### Timeouts and custom transport
+
+`PSN::Client::Request` accepts timeouts in seconds, and every API class and `Session` accepts a `request:` in place of an access token:
+
+```ruby
+request = PSN::Client::Request.new(access_token, open_timeout: 5, read_timeout: 10)
+
+session  = PSN::Client::Session.new(request: request)
+trophies = PSN::Client::Trophies.new(request: request)
+```
+
+`request:` can be any object that responds to `get`, `post` and `graphql` like `Request` does, which is useful for adding retries or caching, or for injecting a fake in tests.
 
 ### Trophy data
 

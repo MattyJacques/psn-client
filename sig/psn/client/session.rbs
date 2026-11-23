@@ -1,0 +1,17 @@
+module PSN
+  module Client
+    class Session
+      @trophies: Trophies?
+      @users: Users?
+      @account: Account?
+
+      attr_reader request: Request
+
+      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> Session
+      def initialize: (?String? access_token, ?request: Request?) -> void
+      def trophies: () -> Trophies
+      def users: () -> Users
+      def account: () -> Account
+    end
+  end
+end
