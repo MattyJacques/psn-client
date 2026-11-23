@@ -4,7 +4,6 @@ module PSN
       AUTH_URL: String
       DEFAULT_CLIENT_ID: String
       DEFAULT_BASIC_TOKEN: String
-      BASIC_TOKEN: String
 
       @npsso: String?
       @client_id: String?

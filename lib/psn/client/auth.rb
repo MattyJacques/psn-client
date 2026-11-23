@@ -17,8 +17,6 @@ module PSN
       DEFAULT_CLIENT_ID = '09515159-7237-4370-9b40-3806e67c0891'
       # Base64 of "<DEFAULT_CLIENT_ID>:<client secret>".
       DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
-      # Kept for compatibility and no longer used: the basic token is now resolved per call.
-      BASIC_TOKEN = ENV.fetch('PSN_BASIC_TOKEN', DEFAULT_BASIC_TOKEN)
 
       def self.authenticate(**options)
         new(**options).authenticate
