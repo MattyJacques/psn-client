@@ -9,4 +9,10 @@ require 'rubocop/rake_task'
 
 RuboCop::RakeTask.new
 
-task default: %i[spec rubocop]
+desc 'Validate the RBS signatures in sig/'
+task :rbs do
+  # spec/support/sig stands in for oauth2's types; the rest are standard libraries.
+  sh 'rbs -I sig -I spec/support/sig -r logger -r net-http -r uri -r json validate'
+end
+
+task default: %i[spec rubocop rbs]
