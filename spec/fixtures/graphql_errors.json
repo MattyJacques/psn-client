@@ -1,0 +1,10 @@
+{
+  "errors": [
+    {
+      "message": "Example resolver failure",
+      "locations": [{ "line": 1, "column": 1 }],
+      "path": ["gameLibraryTitlesRetrieve"]
+    }
+  ],
+  "data": { "gameLibraryTitlesRetrieve": null }
+}

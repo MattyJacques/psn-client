@@ -1,0 +1,23 @@
+{
+  "profile": {
+    "onlineId": "example_user",
+    "accountId": "1234567890123456789",
+    "npId": "ZXhhbXBsZV91c2VyQGEwLnVz",
+    "avatarUrls": [
+      { "size": "l", "avatarUrl": "http://image.example.test/avatar/example_l.png" }
+    ],
+    "plus": 1,
+    "aboutMe": "",
+    "languagesUsed": ["en-GB"],
+    "trophySummary": {
+      "level": 300,
+      "progress": 17,
+      "earnedTrophies": { "platinum": 40, "gold": 200, "silver": 500, "bronze": 1500 }
+    },
+    "isOfficiallyVerified": false,
+    "primaryOnlineStatus": "offline",
+    "presences": [
+      { "onlineStatus": "offline", "lastOnlineDate": "2026-01-02T03:04:05Z" }
+    ]
+  }
+}

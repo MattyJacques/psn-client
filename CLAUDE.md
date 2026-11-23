@@ -52,11 +52,13 @@ Things that are easy to get wrong:
 
 ## Testing conventions
 
-No HTTP-mocking library is used and specs never touch the network. Collaborators are stubbed with `instance_double`:
+Specs never touch the network: `spec_helper` requires `webmock/rspec`, which blocks real connections everywhere. Unit specs (`spec/psn/`) do not use WebMock's stubs; collaborators are stubbed with `instance_double`:
 
 - `Trophies` specs pass a `Request` double as `request:`, stub `#get` and assert on the exact path string and `params:` hash. `Users` and `Account` specs inject the double the same way and assert on `#get`/`#graphql` arguments. Only each `#initialize` group stubs `Request.new`, to cover the access-token path.
 - Stubs (`allow`) go in `before` blocks, never inside `it`; check calls afterwards with `have_received`. No cop enforces this.
 - `Auth` specs stub `Net::HTTP.new`, `OAuth2::Client`, `ENV.fetch`, and `PSN.logger`; `Request` specs stub `Net::HTTP.start`. Both return real `Net::HTTPResponse` objects built with `http_response(code, body, headers)` (`spec/support/http_responses.rb`, included in every example), because errors read `code`, `each_header` and `body`.
+
+`spec/integration/` holds the end-to-end specs (tagged `:integration`, which mixes in `HTTPIntegration` from `spec/support/http_integration.rb`). They drive a real `Session` and let WebMock intercept the HTTP: `stub_request` in `before`, then `a_request(...).with(query:, headers:)` to assert on what went over the wire. Responses come from `spec/fixtures/*.json` via `fixture(name)` (raw body) or `json_fixture(name, status:, headers:)` (a `to_return` hash). Fixtures copy the shape of live responses but every value is made up — never commit a captured response without replacing account IDs, online IDs, device IDs and game data. Keep these few: one per kind of call or failure, not one per method.
 
 Monkey-patching is disabled (`RSpec.describe` and `expect` syntax only). RuboCop RSpec limits are set in `.rubocop.yml`: 15 lines per example, 3 expectations per example, 10 memoized helpers, 4 nesting levels. `Metrics/ClassLength` is raised to 150 lines, and `Metrics/ParameterLists` is disabled only for `trophies.rb`.
 

@@ -14,6 +14,7 @@ gem 'rake', '~> 13.0'
 gem 'rspec', '~> 3.0'
 gem 'ruby-lsp-rspec'
 gem 'simplecov'
+gem 'webmock'
 
 # Code quality tools
 gem 'rbs'

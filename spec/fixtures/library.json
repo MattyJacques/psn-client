@@ -1,0 +1,22 @@
+{
+  "data": {
+    "gameLibraryTitlesRetrieve": {
+      "__typename": "GameList",
+      "games": [
+        {
+          "__typename": "GameLibraryTitle",
+          "conceptId": "10000001",
+          "entitlementId": "EP0000-CUSA00001_00-EXAMPLEGAME00000",
+          "image": { "__typename": "Media", "url": "https://image.example.test/game/icon0.png" },
+          "isActive": true,
+          "lastPlayedDateTime": "2026-01-02T03:04:05.000000Z",
+          "membership": "NONE",
+          "name": "Example Game",
+          "platform": "PS4",
+          "productId": "EP0000-CUSA00001_00-EXAMPLEGAME00000",
+          "titleId": "CUSA00001_00"
+        }
+      ]
+    }
+  }
+}
