@@ -16,6 +16,7 @@ gem 'ruby-lsp-rspec'
 gem 'simplecov'
 
 # Code quality tools
+gem 'rbs'
 gem 'rubocop'
 gem 'rubocop-performance'
 gem 'rubocop-rake'
