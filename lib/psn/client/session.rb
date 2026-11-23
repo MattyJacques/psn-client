@@ -13,15 +13,18 @@ module PSN
     class Session
       attr_reader :request
 
-      # Authenticates and returns a session for the new token. Options are passed to Auth.new.
-      def self.authenticate(**auth_options)
-        new(Auth.authenticate(**auth_options))
+      # Authenticates and returns a session for the new token. Timeouts (in seconds) apply to
+      # authentication and to the session's requests; other options are passed to Auth.new.
+      def self.authenticate(open_timeout: nil, read_timeout: nil, write_timeout: nil, **auth_options)
+        timeouts = { open_timeout: open_timeout, read_timeout: read_timeout, write_timeout: write_timeout }.compact
+        new(Auth.authenticate(**auth_options, **timeouts), **timeouts)
       end
 
-      # Pass an access token, or `request:` to inject a Request (or any object
-      # responding to the same methods) instead of building one.
-      def initialize(access_token = nil, request: nil)
-        @request = Request.for(access_token, request)
+      # Pass an access token, optionally with timeouts for the Request built from it, or
+      # `request:` to inject a Request (or any object responding to the same methods)
+      # instead of building one.
+      def initialize(access_token = nil, request: nil, **timeouts)
+        @request = Request.for(access_token, request, **timeouts)
       end
 
       def trophies
