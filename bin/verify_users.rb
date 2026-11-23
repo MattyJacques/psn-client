@@ -5,11 +5,15 @@ require 'bundler/setup'
 require 'debug'
 require 'psn/client'
 
+# Labels of failed checks; the script exits nonzero if any are recorded.
+@failures = []
+
 # Runs one check, printing its summary or the error without stopping the rest.
 def check(label)
   result = yield
   puts "#{label}: #{result}"
 rescue StandardError => e
+  @failures << label
   puts "#{label}: FAILED: #{e.class}: #{e.message}"
   nil
 end
@@ -39,7 +43,9 @@ if online_id
   end
   check('Users#account_id') do
     found = users.account_id(online_id)
-    "#{found} (#{found == account_id.to_s ? 'matches' : 'does not match'} summary)"
+    raise PSN::Client::Error, "#{found} does not match summary account ID #{account_id}" if found != account_id.to_s
+
+    "#{found} (matches summary)"
   end
   check('Users#profile') { "keys: #{users.profile(online_id: online_id).keys.first(5).join(', ')}" }
 end
@@ -60,4 +66,11 @@ check('Account#library') do
 end
 check('Account#purchased_games') do
   "#{account.purchased_games.dig('data', 'purchasedTitlesRetrieve', 'games')&.size.to_i} games in first page (size 200)"
+end
+
+if @failures.empty?
+  puts 'All checks passed.'
+else
+  warn "#{@failures.size} check(s) failed: #{@failures.join(', ')}"
+  exit 1
 end

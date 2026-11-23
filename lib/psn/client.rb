@@ -2,6 +2,7 @@
 
 require_relative 'client/account'
 require_relative 'client/auth'
+require_relative 'client/pagination'
 require_relative 'client/request'
 require_relative 'client/trophies'
 require_relative 'client/users'

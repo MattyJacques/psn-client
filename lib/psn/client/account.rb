@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+require_relative 'pagination'
 require_relative 'request'
 
 module PSN
   module Client
     # Handles requests about the authenticated account: devices, library, purchases and summary
     class Account
+      include Pagination
+
       # Served by the DMS host, which has no /api suffix, so the path carries it. Verified live 2026-11-22.
       DEVICES_PATH = '/api/v1/devices/accounts/me'
       DEVICES_PARAMS = { 'includeFields' => 'device,systemData', 'platform' => 'PS5,PS4,PS3,PSVita' }.freeze
@@ -36,12 +39,14 @@ module PSN
       end
 
       def library(limit: LIBRARY_MAX_LIMIT)
-        raise ArgumentError, "limit must be at most #{LIBRARY_MAX_LIMIT}" if limit > LIBRARY_MAX_LIMIT
+        validate_page_param!('limit', limit, min: 1, max: LIBRARY_MAX_LIMIT)
 
         @request.graphql(LIBRARY_OPERATION, { 'categories' => LIBRARY_CATEGORIES, 'limit' => limit }, LIBRARY_HASH)
       end
 
       def purchased_games(size: 200, start: 0)
+        validate_page_param!('size', size, min: 1)
+        validate_page_param!('start', start, min: 0)
         variables = PURCHASED_VARIABLES.merge('size' => size, 'start' => start)
         @request.graphql(PURCHASED_OPERATION, variables, PURCHASED_HASH)
       end
