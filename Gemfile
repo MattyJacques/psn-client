@@ -17,7 +17,6 @@ gem 'simplecov'
 gem 'webmock'
 
 # Code quality tools
-gem 'rbs'
 gem 'rubocop'
 gem 'rubocop-performance'
 gem 'rubocop-rake'

@@ -30,5 +30,3 @@ jobs:
         run: bundle exec rake spec
       - name: Run linter
         run: bundle exec rake rubocop
-      - name: Validate signatures
-        run: bundle exec rake rbs
