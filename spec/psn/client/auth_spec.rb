@@ -266,15 +266,39 @@ RSpec.describe PSN::Client::Auth do
     end
 
     context 'when the token response is malformed JSON' do
-      before do
-        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
-        allow(auth_code_strategy).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+      let(:builder) { instance_double(Faraday::RackBuilder, request: nil, adapter: nil) }
+      let(:recorders) { [] }
+      let(:token_response) do
+        Faraday::Response.new(Faraday::Env.from(status: 200, body: '{bad',
+                                                response_headers: { 'Content-Type' => 'application/json' }))
       end
 
-      it 'raises ParseError wrapping the JSON error' do
+      before do
+        allow(builder).to receive(:use) { |_klass, callback| recorders << callback }
+        allow(OAuth2::Client).to receive(:new) do |*_args, &connection_build|
+          connection_build.call(builder)
+          oauth_client
+        end
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token) do
+          recorders.each { |recorder| recorder.call(token_response) }
+          raise JSON::ParserError, 'unexpected token'
+        end
+      end
+
+      it 'raises ParseError with the recorded token response' do
         expect { auth.authenticate }.to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
+          expect(e).to have_attributes(status: 200, body: '{bad', headers: { 'content-type' => 'application/json' })
           expect(e.cause).to be_a(JSON::ParserError)
         end
+      end
+
+      it 'records responses on oauth2\'s default stack' do
+        auth.authenticate
+      rescue PSN::Client::ParseError
+        expect(builder).to have_received(:request).with(:url_encoded)
+        expect(builder).to have_received(:use).with(PSN::Client::ResponseRecorder, kind_of(Proc))
+        expect(builder).to have_received(:adapter).with(Faraday.default_adapter)
       end
     end
 

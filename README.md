@@ -149,13 +149,18 @@ Every error the gem raises from a PSN call is a `PSN::Client::Error` (argument v
 Errors built from a response expose `status` (Integer), `headers` (Hash with lowercase names) and `body` (raw String); otherwise these are `nil`/empty. The original exception, for transport, parse and token-exchange failures, is available from `cause`.
 
 ```ruby
+reauthenticated = false
 begin
   trophies.trophy_titles
 rescue PSN::Client::RateLimitError => e
   sleep([e.retry_at - Time.now, 0].max) if e.retry_at
   retry
 rescue PSN::Client::AuthenticationError
-  access_token = PSN::Client::Auth.authenticate
+  raise if reauthenticated # the fresh token was rejected too
+
+  reauthenticated = true
+  # API objects hold the token they were created with, so rebuild them with the new one
+  trophies = PSN::Client::Trophies.new(PSN::Client::Auth.authenticate)
   retry
 rescue PSN::Client::Error => e
   warn "PSN request failed (#{e.status.inspect}): #{e.message}"
