@@ -80,6 +80,24 @@ trophies = PSN::Client::Trophies.new(request: request)
 
 `request:` can be any object that responds to `get`, `post` and `graphql` like `Request` does, which is useful for adding retries or caching, or for injecting a fake in tests.
 
+### Return values
+
+The gem has no model objects. Methods return plain Ruby data, in one of two ways:
+
+**Endpoint wrappers** make one HTTP request and return Sony's JSON response body, parsed and otherwise untouched: a `Hash` with String keys, exactly as Sony sent it. Nothing is unwrapped, renamed or paged for you, and an empty response body returns `nil`. Almost every method is an endpoint wrapper. Those backed by GraphQL return the whole GraphQL body, so the results sit under `'data'`.
+
+**Convenience methods** reshape a response into something smaller. There are two, both on `Users`.
+
+| Methods | Kind | Returns |
+| --- | --- | --- |
+| Every `Trophies` method | Endpoint wrapper | Response body |
+| `Users#profile_by_account_id`, `Users#played_games`, `Account#devices` | Endpoint wrapper | Response body |
+| `Users#search`, `Account#library`, `Account#purchased_games`, `Account#summary` | Endpoint wrapper (GraphQL) | Response body; results under `'data'` |
+| `Users#profile` | Convenience | The `Hash` under the response's `'profile'` key, or `nil` if the response was empty |
+| `Users#account_id` | Convenience | The account ID as a `String`; raises `PSN::Client::Error` if no account is found |
+
+Because endpoint wrappers pass Sony's response through, a change on Sony's side changes what they return. Read values defensively, for example with `dig`.
+
 ### Trophy data
 
 Pass the access token to `PSN::Client::Trophies` and call the relevant method. All `user_id` parameters default to `'me'` (the authenticated user); for another player pass their numeric account ID (see `Users#account_id`), not their online ID.

@@ -5,7 +5,11 @@ require_relative 'request'
 
 module PSN
   module Client
-    # Handles user and account lookups: search, profiles and played games
+    # Handles user and account lookups: search, profiles and played games.
+    #
+    # #search, #profile_by_account_id and #played_games are endpoint wrappers: they
+    # return the parsed response body untouched. #profile and #account_id are
+    # convenience methods that return part of a response instead.
     class Users
       include Pagination
 
@@ -43,6 +47,7 @@ module PSN
         @request.graphql(SEARCH_OPERATION, variables, SEARCH_HASH, headers: SEARCH_HEADERS)
       end
 
+      # Convenience method: returns the account ID String rather than a response body.
       # Exact lookup via the profile, which carries the numeric account ID. Search is
       # not used: it is fuzzy, and it leaves the authenticated account out of results.
       def account_id(online_id)
@@ -52,6 +57,8 @@ module PSN
         id
       end
 
+      # Convenience method: returns the Hash under the response's "profile" key, or
+      # nil when the response body is empty.
       def profile(online_id:)
         unless online_id.is_a?(String) && ONLINE_ID_PATTERN.match?(online_id)
           raise ArgumentError, "invalid PSN online ID: #{online_id.inspect}"
