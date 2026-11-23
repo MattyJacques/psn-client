@@ -16,6 +16,25 @@ RSpec.describe PSN::Client::Session do
     it 'builds a session from the new access token' do
       expect(described_class.authenticate(npsso: 'npsso').request).to be(request)
     end
+
+    context 'with timeouts' do
+      let(:timeouts) { { open_timeout: 2, read_timeout: 5, write_timeout: 7 } }
+
+      before do
+        allow(PSN::Client::Auth).to receive(:authenticate).with(npsso: 'npsso', **timeouts).and_return('token')
+        allow(PSN::Client::Request).to receive(:new).with('token', **timeouts).and_return(request)
+      end
+
+      it 'applies them to authentication' do
+        described_class.authenticate(npsso: 'npsso', **timeouts)
+        expect(PSN::Client::Auth).to have_received(:authenticate).with(npsso: 'npsso', **timeouts)
+      end
+
+      it 'applies them to the request' do
+        described_class.authenticate(npsso: 'npsso', **timeouts)
+        expect(PSN::Client::Request).to have_received(:new).with('token', **timeouts)
+      end
+    end
   end
 
   describe '#initialize' do
@@ -25,6 +44,21 @@ RSpec.describe PSN::Client::Session do
 
     it 'builds a request from an access token' do
       expect(described_class.new('token').request).to be(request)
+    end
+
+    context 'with timeouts' do
+      before do
+        allow(PSN::Client::Request).to receive(:new).with('token', read_timeout: 5).and_return(request)
+      end
+
+      it 'passes them to the request' do
+        expect(described_class.new('token', read_timeout: 5).request).to be(request)
+      end
+    end
+
+    it 'rejects timeouts alongside an injected request' do
+      expect { described_class.new(request: request, read_timeout: 5) }
+        .to raise_error(ArgumentError, /injected request/)
     end
 
     it 'requires an access token or a request' do

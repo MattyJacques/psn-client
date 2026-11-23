@@ -10,8 +10,8 @@ module PSN
       @access_token: String
       @http_options: Hash[Symbol, untyped]
 
-      def self.for: (String? access_token, ?Request? request) -> Request
-      def initialize: (String access_token, ?open_timeout: Numeric?, ?read_timeout: Numeric?) -> void
+      def self.for: (String? access_token, ?Request? request, **untyped options) -> Request
+      def initialize: (String access_token, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
       def get: (String path, ?host: Symbol, ?params: Hash[untyped, untyped], ?headers: Hash[String, String]) -> untyped
       def post: (String path, untyped body, ?host: Symbol, ?headers: Hash[String, String]) -> untyped
       def graphql: (String operation_name, Hash[untyped, untyped] variables, String sha256_hash, ?host: Symbol, ?headers: Hash[String, String]) -> untyped

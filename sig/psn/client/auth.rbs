@@ -4,13 +4,15 @@ module PSN
       AUTH_URL: String
       DEFAULT_CLIENT_ID: String
       DEFAULT_BASIC_TOKEN: String
+      TIMEOUT_OPTIONS: Array[Symbol]
 
       @npsso: String?
       @client_id: String?
       @basic_token: String?
+      @timeouts: Hash[Symbol, Numeric]
 
-      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> String
-      def initialize: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> void
+      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> String
+      def initialize: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
       def authenticate: () -> String
 
       private

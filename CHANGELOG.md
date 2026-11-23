@@ -4,7 +4,8 @@
 - `PSN_BASIC_TOKEN` is now read when authenticating instead of once when the gem loads, so setting it after `require` takes effect
 - **Breaking:** removed the `Auth::BASIC_TOKEN` constant. Use `Auth::DEFAULT_BASIC_TOKEN`, or pass `basic_token:`
 - `Trophies`, `Users` and `Account` accept `request:` to inject a request object in place of an access token
-- `Request.new` accepts `open_timeout:` and `read_timeout:`
+- `Request.new` accepts `open_timeout:`, `read_timeout:` and `write_timeout:`
+- `Auth.authenticate`, `Auth.new`, `Session.authenticate` and `Session.new` accept the same three timeouts. `Auth` applies them to the authorisation request and the token exchange, and `Session` to the request it builds; passing them to `Session.new` with `request:` raises `ArgumentError`
 - Added `PSN::Client::Session`, which shares one request across `trophies`, `users` and `account`, with `Session.authenticate` to build one from credentials
 - **Breaking:** `Auth.authenticate` raises `PSN::Client::AuthenticationError` (or `TransportError`) instead of `RuntimeError`. Code rescuing `RuntimeError` must rescue `PSN::Client::Error` or a subclass
 - **Breaking:** an API response of HTTP 401 raises `PSN::Client::AuthenticationError`, and GraphQL errors raise `PSN::Client::GraphQLError`. Both are still `PSN::Client::Error` subclasses

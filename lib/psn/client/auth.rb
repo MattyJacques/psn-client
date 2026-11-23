@@ -18,16 +18,24 @@ module PSN
       # Base64 of "<DEFAULT_CLIENT_ID>:<client secret>".
       DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
 
+      TIMEOUT_OPTIONS = %i[open_timeout read_timeout write_timeout].freeze
+
       def self.authenticate(**options)
         new(**options).authenticate
       end
 
       # Each credential falls back to its environment variable (PSN_NPSSO, PSN_CLIENT_ID,
-      # PSN_BASIC_TOKEN), read when authenticating, and then to the default.
-      def initialize(npsso: nil, client_id: nil, basic_token: nil)
+      # PSN_BASIC_TOKEN), read when authenticating, and then to the default. Timeouts are in
+      # seconds and apply to both the authorisation request and the token exchange; nil keeps
+      # the HTTP library's default.
+      def initialize(npsso: nil, client_id: nil, basic_token: nil, **timeouts)
+        unknown = timeouts.keys - TIMEOUT_OPTIONS
+        raise ArgumentError, "unknown keyword: #{unknown.map(&:inspect).join(', ')}" unless unknown.empty?
+
         @npsso = npsso
         @client_id = client_id
         @basic_token = basic_token
+        @timeouts = timeouts.compact
       end
 
       def authenticate
@@ -68,6 +76,7 @@ module PSN
       def http_for(uri)
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = uri.scheme == 'https'
+        @timeouts.each { |name, seconds| http.public_send("#{name}=", seconds) }
         http
       end
 
@@ -145,7 +154,7 @@ module PSN
       end
 
       def client
-        @client ||= OAuth2::Client.new(client_id, '', site: AUTH_URL)
+        @client ||= OAuth2::Client.new(client_id, '', site: AUTH_URL, connection_opts: { request: @timeouts })
       end
 
       def auth_url

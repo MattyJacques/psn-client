@@ -7,8 +7,8 @@ module PSN
 
       attr_reader request: Request
 
-      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> Session
-      def initialize: (?String? access_token, ?request: Request?) -> void
+      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> Session
+      def initialize: (?String? access_token, ?request: Request?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
       def trophies: () -> Trophies
       def users: () -> Users
       def account: () -> Account

@@ -62,10 +62,17 @@ session.account.devices
 
 ### Timeouts and custom transport
 
-`PSN::Client::Request` accepts timeouts in seconds, and every API class and `Session` accepts a `request:` in place of an access token:
+`open_timeout:`, `read_timeout:` and `write_timeout:` are in seconds, and each keeps Ruby's default when omitted. `Session` accepts them directly; `Session.authenticate` and `Auth.authenticate` also apply them to the authentication requests:
 
 ```ruby
-request = PSN::Client::Request.new(access_token, open_timeout: 5, read_timeout: 10)
+session = PSN::Client::Session.authenticate(open_timeout: 5, read_timeout: 10, write_timeout: 10)
+session = PSN::Client::Session.new(access_token, open_timeout: 5, read_timeout: 10)
+```
+
+`PSN::Client::Request` accepts the same timeouts, and every API class and `Session` accepts a `request:` in place of an access token:
+
+```ruby
+request = PSN::Client::Request.new(access_token, open_timeout: 5, read_timeout: 10, write_timeout: 10)
 
 session  = PSN::Client::Session.new(request: request)
 trophies = PSN::Client::Trophies.new(request: request)

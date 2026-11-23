@@ -324,7 +324,7 @@ RSpec.describe PSN::Client::Request do
   end
 
   describe 'timeouts' do
-    subject(:request_service) { described_class.new(access_token, open_timeout: 2, read_timeout: 5) }
+    subject(:request_service) { described_class.new(access_token, open_timeout: 2, read_timeout: 5, write_timeout: 7) }
 
     before do
       allow(Net::HTTP).to receive(:start).and_yield(http)
@@ -334,7 +334,7 @@ RSpec.describe PSN::Client::Request do
     it 'passes them to Net::HTTP' do
       request_service.get('/test')
       expect(Net::HTTP).to have_received(:start)
-        .with('m.np.playstation.com', 443, use_ssl: true, open_timeout: 2, read_timeout: 5)
+        .with('m.np.playstation.com', 443, use_ssl: true, open_timeout: 2, read_timeout: 5, write_timeout: 7)
     end
   end
 
@@ -351,6 +351,22 @@ RSpec.describe PSN::Client::Request do
 
     it 'raises ArgumentError when given neither' do
       expect { described_class.for(nil) }.to raise_error(ArgumentError, /access token or a request/)
+    end
+
+    it 'raises ArgumentError when given options with an injected request' do
+      expect { described_class.for(nil, injected, read_timeout: 5) }
+        .to raise_error(ArgumentError, /read_timeout.*injected request/)
+    end
+
+    context 'with options' do
+      before do
+        allow(described_class).to receive(:new).and_call_original
+      end
+
+      it 'passes them to the new request' do
+        described_class.for(access_token, nil, read_timeout: 5)
+        expect(described_class).to have_received(:new).with(access_token, read_timeout: 5)
+      end
     end
   end
 end

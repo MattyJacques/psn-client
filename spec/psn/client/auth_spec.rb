@@ -26,6 +26,17 @@ RSpec.describe PSN::Client::Auth do
       described_class.authenticate(npsso: 'n', client_id: 'c', basic_token: 'b')
       expect(described_class).to have_received(:new).with(npsso: 'n', client_id: 'c', basic_token: 'b')
     end
+
+    it 'passes timeouts to the new instance' do
+      described_class.authenticate(open_timeout: 2, read_timeout: 5, write_timeout: 7)
+      expect(described_class).to have_received(:new).with(open_timeout: 2, read_timeout: 5, write_timeout: 7)
+    end
+  end
+
+  describe '#initialize' do
+    it 'rejects unknown options' do
+      expect { described_class.new(timeout: 5) }.to raise_error(ArgumentError, 'unknown keyword: :timeout')
+    end
   end
 
   describe 'default credentials' do
@@ -115,6 +126,34 @@ RSpec.describe PSN::Client::Auth do
       it 'creates the OAuth client with the client ID from the environment' do
         auth.authenticate
         expect(OAuth2::Client).to have_received(:new).with('test_client_id', '', anything)
+      end
+
+      context 'with timeouts' do
+        let(:auth) { described_class.new(open_timeout: 2, read_timeout: 5, write_timeout: 7) }
+
+        before do
+          allow(http).to receive_messages('open_timeout=': nil, 'read_timeout=': nil, 'write_timeout=': nil)
+          auth.authenticate
+        end
+
+        it 'applies them to the authorisation request' do
+          expect(http).to have_received(:open_timeout=).with(2)
+          expect(http).to have_received(:read_timeout=).with(5)
+          expect(http).to have_received(:write_timeout=).with(7)
+        end
+
+        it 'applies them to the token exchange' do
+          expect(OAuth2::Client).to have_received(:new).with(
+            'test_client_id', '',
+            hash_including(connection_opts: { request: { open_timeout: 2, read_timeout: 5, write_timeout: 7 } })
+          )
+        end
+      end
+
+      it 'leaves the token exchange timeouts at their defaults' do
+        auth.authenticate
+        expect(OAuth2::Client).to have_received(:new)
+          .with('test_client_id', '', hash_including(connection_opts: { request: {} }))
       end
 
       context 'with explicit credentials' do

@@ -23,18 +23,25 @@ module PSN
       # request identifies the gem instead.
       USER_AGENT = "psn-client/#{VERSION}".freeze
 
-      # Returns the injected request object, or builds one from the access token.
-      def self.for(access_token, request = nil)
-        return request if request
+      # Returns the injected request object, or builds one from the access token and
+      # options (see #initialize). Options cannot be combined with an injected request,
+      # which carries its own configuration.
+      def self.for(access_token, request = nil, **options)
+        if request
+          return request if options.empty?
+
+          raise ArgumentError, "#{options.keys.join(', ')} cannot be combined with an injected request"
+        end
         raise ArgumentError, 'an access token or a request object is required' if access_token.nil?
 
-        new(access_token)
+        new(access_token, **options)
       end
 
       # Timeouts are in seconds; nil keeps Net::HTTP's default.
-      def initialize(access_token, open_timeout: nil, read_timeout: nil)
+      def initialize(access_token, open_timeout: nil, read_timeout: nil, write_timeout: nil)
         @access_token = access_token
-        @http_options = { use_ssl: true, open_timeout: open_timeout, read_timeout: read_timeout }.compact
+        @http_options = { use_ssl: true, open_timeout: open_timeout, read_timeout: read_timeout,
+                          write_timeout: write_timeout }.compact
       end
 
       def get(path, host: :mobile, params: {}, headers: {})
