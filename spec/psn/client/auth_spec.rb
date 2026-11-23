@@ -135,6 +135,60 @@ RSpec.describe PSN::Client::Auth do
       end
     end
 
+    context 'when the authorisation request is rate limited' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(429, '', 'Retry-After' => '120'))
+      end
+
+      it 'raises RateLimitError with the retry time' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::RateLimitError) do |e|
+          expect(e).to have_attributes(status: 429, retry_at: be_a(Time))
+        end
+      end
+    end
+
+    context 'when the authorisation endpoint has a server error' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(503, 'unavailable'))
+      end
+
+      it 'raises a plain Error rather than AuthenticationError' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::Error) do |e|
+          expect(e).to be_an_instance_of(PSN::Client::Error)
+          expect(e).to have_attributes(status: 503, body: 'unavailable')
+        end
+      end
+    end
+
+    context 'when the redirect location is not a valid URI' do
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect url?code=AUTH_CODE_123') }
+
+      before do
+        allow(http).to receive(:request).and_return(response)
+      end
+
+      it 'raises AuthenticationError with the response details' do
+        expect { auth.authenticate }
+          .to raise_error(PSN::Client::AuthenticationError, /PSN authorisation redirect was malformed/) do |e|
+          expect(e.status).to eq(302)
+          expect(e.cause).to be_a(URI::InvalidURIError)
+        end
+      end
+    end
+
+    context 'when the redirect query is not valid form encoding' do
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect.url?error_description=%ZZ') }
+
+      before do
+        allow(http).to receive(:request).and_return(response)
+      end
+
+      it 'raises AuthenticationError' do
+        expect { auth.authenticate }
+          .to raise_error(PSN::Client::AuthenticationError, /PSN authorisation redirect was malformed/)
+      end
+    end
+
     context 'when the response body contains an error description' do
       let(:response_body) do
         {
@@ -251,6 +305,26 @@ RSpec.describe PSN::Client::Auth do
       end
     end
 
+    { 429 => PSN::Client::RateLimitError, 503 => PSN::Client::Error }.each do |status, error_class|
+      context "when the token exchange answers HTTP #{status}" do
+        let(:token_response) do
+          instance_double(OAuth2::Response, status: status, headers: {}, body: 'try later', parsed: nil)
+        end
+
+        before do
+          allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+          allow(auth_code_strategy).to receive(:get_token).and_raise(OAuth2::Error.new(token_response))
+        end
+
+        it "raises #{error_class} rather than AuthenticationError" do
+          expect { auth.authenticate }.to raise_error(PSN::Client::Error, /PSN token exchange failed/) do |e|
+            expect(e).to be_an_instance_of(error_class)
+            expect(e).to have_attributes(status: status, body: 'try later')
+          end
+        end
+      end
+    end
+
     context 'when the token exchange is rejected without a response object' do
       before do
         allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
@@ -287,6 +361,45 @@ RSpec.describe PSN::Client::Auth do
       it 'raises TransportError' do
         expect { auth.authenticate }.to raise_error(PSN::Client::TransportError, /PSN token request failed/) do |e|
           expect(e.cause).to be_a(Faraday::TimeoutError)
+        end
+      end
+    end
+
+    context 'when the token request fails with another Faraday error' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_raise(Faraday::Error, 'adapter failure')
+      end
+
+      it 'raises TransportError' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::TransportError, /adapter failure/) do |e|
+          expect(e.cause).to be_a(Faraday::Error)
+        end
+      end
+    end
+
+    context 'when debug logging is on' do
+      let(:debug_messages) { [] }
+      let(:expires_in) { 600 }
+      let(:access_token) { instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', expires_in: expires_in) }
+
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_return(access_token)
+        allow(logger).to receive(:debug) { |&block| debug_messages << block.call }
+      end
+
+      it 'logs the token lifetime in minutes' do
+        auth.authenticate
+        expect(debug_messages).to include('Fetched access token which expires in: 10 minutes')
+      end
+
+      context 'when the token response has no expires_in' do
+        let(:expires_in) { nil }
+
+        it 'still returns the token' do
+          expect(auth.authenticate).to eq('ACCESS_TOKEN')
+          expect(debug_messages).to include('Fetched access token which expires in: unknown minutes')
         end
       end
     end

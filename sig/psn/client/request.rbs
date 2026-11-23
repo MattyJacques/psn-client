@@ -16,6 +16,7 @@ module PSN
 
       def authorize: (Net::HTTPRequest request, Hash[String, String] headers) -> Net::HTTPRequest
       def raise_graphql_errors: (untyped result, Net::HTTPResponse response) -> void
+      def check_graphql_result: (untyped result, Net::HTTPResponse response) -> void
       def build_uri: (Symbol host, String path, Hash[untyped, untyped] params) -> URI::Generic
       def perform: (URI::Generic uri, Net::HTTPRequest http_request) -> [untyped, Net::HTTPResponse]
       def parse_response: (Net::HTTPResponse response) -> untyped

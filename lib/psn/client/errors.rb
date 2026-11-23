@@ -3,6 +3,7 @@
 require 'net/http'
 require 'openssl'
 require 'time'
+require 'zlib'
 
 module PSN
   module Client
@@ -21,6 +22,18 @@ module PSN
           { status: response.status, headers: response.headers.to_h.transform_keys(&:downcase), body: response.body }
         else
           {}
+        end
+      end
+
+      # The error for a failed authorisation or token response. A rate limit or a Sony
+      # outage says nothing about the credentials, so only the remaining statuses are
+      # reported as AuthenticationError.
+      def self.from_auth_response(message, response, error_code: nil)
+        details = details_from(response)
+        case details[:status]
+        when 429 then RateLimitError.new(message, **details)
+        when 500.. then Error.new(message, **details)
+        else AuthenticationError.new(message, error_code: error_code, **details)
         end
       end
 
@@ -61,13 +74,17 @@ module PSN
       private
 
       def parse_retry_at(now)
-        next_available = headers['x-ratelimit-next-available']
-        return Time.at(Integer(next_available, 10)) if next_available
+        next_available_time(headers['x-ratelimit-next-available']) || retry_after_time(headers['retry-after'], now)
+      end
 
-        retry_after = headers['retry-after']
-        return unless retry_after
+      def next_available_time(value)
+        Time.at(Integer(value, 10)) if value&.match?(/\A\d+\z/)
+      end
 
-        retry_after.match?(/\A\d+\z/) ? now + Integer(retry_after, 10) : Time.httpdate(retry_after)
+      def retry_after_time(value, now)
+        return unless value
+
+        value.match?(/\A\d+\z/) ? now + Integer(value, 10) : Time.httpdate(value)
       rescue ArgumentError
         nil
       end
@@ -85,10 +102,11 @@ module PSN
       end
     end
 
-    # The request never produced a response: DNS, connection, TLS or timeout failure.
+    # The request never produced a usable response: DNS, connection, TLS or timeout
+    # failure, or a response that could not be read (malformed headers, corrupt gzip body).
     class TransportError < Error
       NETWORK_ERRORS = [IOError, SocketError, SystemCallError, Timeout::Error, OpenSSL::SSL::SSLError,
-                        Net::ProtocolError, Net::HTTPBadResponse].freeze
+                        Net::ProtocolError, Net::HTTPBadResponse, Net::HTTPHeaderSyntaxError, Zlib::Error].freeze
     end
 
     # A successful response (or token exchange) whose body was not valid JSON.

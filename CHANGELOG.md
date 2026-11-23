@@ -4,7 +4,11 @@
 - **Breaking:** an API response of HTTP 401 raises `PSN::Client::AuthenticationError`, and GraphQL errors raise `PSN::Client::GraphQLError`. Both are still `PSN::Client::Error` subclasses
 - Added structured errors: `PSN::Client::Error` now exposes `status`, `headers` and `body`, and new subclasses `AuthenticationError` (`error_code`), `RateLimitError` (`retry_at`), `GraphQLError` (`errors`, `data`), `TransportError` and `ParseError` cover authentication, HTTP 429, GraphQL, network and invalid-JSON failures
 - Network failures and invalid JSON bodies no longer escape as `Net::*`, `SocketError`, `Errno::*`, `Faraday::*` or `JSON::ParserError`; the original exception is kept as `cause`
-- A successful response with an empty body (such as HTTP 204) returns `nil` instead of raising `TypeError`
+- A successful response with an empty body (such as HTTP 204) returns `nil` instead of raising `TypeError`. `Users#profile` returns `nil` for one, and an empty GraphQL response raises `ParseError`
+- `Auth.authenticate` raises `RateLimitError` for HTTP 429 and plain `PSN::Client::Error` for HTTP 5xx, from either the authorisation request or the token exchange, instead of reporting them as `AuthenticationError`
+- A malformed authorisation redirect raises `AuthenticationError`, and any `Faraday::Error`, corrupt compressed body or malformed response header raises `TransportError`
+- `RateLimitError#retry_at` falls back to `Retry-After` when `X-RateLimit-Next-Available` is not a whole number
+- `Auth.authenticate` no longer fails under debug logging when the token response has no `expires_in`
 
 ## [0.2.0] - 2026-11-23
 
