@@ -1,11 +1,14 @@
 # frozen_string_literal: true
 
+require_relative 'pagination'
 require_relative 'request'
 
 module PSN
   module Client
     # Handles user and account lookups: search, profiles and played games
     class Users
+      include Pagination
+
       # Paths and quirks below were verified against the live API on 2026-11-22.
       # Player search is the PlayStation App's persisted GraphQL "context" search. The
       # older REST /search/v1/universalSearch POST is blocked at Sony's edge (Akamai
@@ -65,7 +68,9 @@ module PSN
 
       def played_games(user_id: 'me', limit: PLAYED_GAMES_MAX_LIMIT, offset: 0)
         raise ArgumentError, "invalid PSN user ID: #{user_id.inspect}" unless user_id.to_s.match?(USER_ID_PATTERN)
-        raise ArgumentError, "limit must be at most #{PLAYED_GAMES_MAX_LIMIT}" if limit > PLAYED_GAMES_MAX_LIMIT
+
+        validate_page_param!('limit', limit, min: 1, max: PLAYED_GAMES_MAX_LIMIT)
+        validate_page_param!('offset', offset, min: 0)
 
         @request.get(format(PLAYED_GAMES_PATH, user_id), params: { 'limit' => limit, 'offset' => offset })
       end

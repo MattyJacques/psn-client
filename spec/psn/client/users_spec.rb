@@ -134,7 +134,20 @@ RSpec.describe PSN::Client::Users do
     end
 
     it 'rejects a limit above the maximum' do
-      expect { users.played_games(limit: 201) }.to raise_error(ArgumentError)
+      expect { users.played_games(limit: 201) }
+        .to raise_error(ArgumentError, 'limit must be an Integer between 1 and 200, got 201')
+    end
+
+    it 'rejects a limit below 1 or not an Integer' do
+      [0, -1, 1.5, '5', nil].each do |bad|
+        expect { users.played_games(limit: bad) }.to raise_error(ArgumentError, /limit must be an Integer/)
+      end
+    end
+
+    it 'rejects a negative or non-Integer offset' do
+      [-1, 1.5, '0', nil].each do |bad|
+        expect { users.played_games(offset: bad) }.to raise_error(ArgumentError, /offset must be an Integer at least 0/)
+      end
     end
   end
 end

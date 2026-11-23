@@ -37,7 +37,14 @@ RSpec.describe PSN::Client::Account do
     end
 
     it 'rejects a library limit over 100' do
-      expect { account.library(limit: 101) }.to raise_error(ArgumentError)
+      expect { account.library(limit: 101) }
+        .to raise_error(ArgumentError, 'limit must be an Integer between 1 and 100, got 101')
+    end
+
+    it 'rejects a library limit below 1 or not an Integer' do
+      [0, -1, 1.5, nil].each do |bad|
+        expect { account.library(limit: bad) }.to raise_error(ArgumentError, /limit must be an Integer/)
+      end
     end
   end
 
@@ -50,6 +57,22 @@ RSpec.describe PSN::Client::Account do
 
     it 'fetches purchased games' do
       expect(account.purchased_games(size: 50, start: 10)).to eq(body)
+    end
+
+    it 'rejects a size below 1 or not an Integer' do
+      [0, -1, 1.5, nil].each do |bad|
+        expect do
+          account.purchased_games(size: bad)
+        end.to raise_error(ArgumentError, /size must be an Integer at least 1/)
+      end
+    end
+
+    it 'rejects a negative or non-Integer start' do
+      [-1, 1.5, nil].each do |bad|
+        expect do
+          account.purchased_games(start: bad)
+        end.to raise_error(ArgumentError, /start must be an Integer at least 0/)
+      end
     end
   end
 

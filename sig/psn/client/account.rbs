@@ -1,6 +1,8 @@
 module PSN
   module Client
     class Account
+      include Pagination
+
       DEVICES_PATH: String
       DEVICES_PARAMS: Hash[String, String]
       LIBRARY_OPERATION: String

@@ -1,0 +1,9 @@
+module PSN
+  module Client
+    module Pagination
+      private
+
+      def validate_page_param!: (String name, untyped value, min: Integer, ?max: Integer?) -> void
+    end
+  end
+end
