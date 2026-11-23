@@ -1,6 +1,10 @@
 module PSN
   module Client
     class Trophies
+      include Pagination
+
+      TROPHY_TITLES_MAX_LIMIT: Integer
+
       @request: Request
 
       def initialize: (?String? access_token, ?request: Request?) -> void
@@ -8,13 +12,13 @@ module PSN
       def trophy_summary: (?user_id: String) -> untyped
       def title_trophy_groups: (np_communication_id: String, ?np_service_name: String?, ?platform: String?) -> untyped
       def earned_trophy_groups: (?user_id: String, np_communication_id: String, ?np_service_name: String?, ?platform: String?) -> untyped
-      def title_trophies: (np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, **untyped options) -> untyped
-      def earned_trophies: (?user_id: String, np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, **untyped options) -> untyped
-      
+      def title_trophies: (np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, ?limit: Integer?, ?offset: Integer?) -> untyped
+      def earned_trophies: (?user_id: String, np_communication_id: String, ?trophy_group_id: String, ?np_service_name: String?, ?platform: String?, ?limit: Integer?, ?offset: Integer?) -> untyped
+
       private
 
+      def title_params: (String? service_name, String? platform, ?limit: Integer?, ?offset: Integer?) -> Hash[String, String | Integer]
       def resolve_service_name: (String? service_name, String? platform) -> String?
-      def build_query_string: (**untyped query_params) -> String
     end
   end
 end

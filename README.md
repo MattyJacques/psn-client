@@ -92,6 +92,7 @@ trophies.trophy_summary
 trophies.trophy_summary(user_id: 'example_user')
 
 # List of trophy titles (games) for a user
+# (limit defaults to 800, the maximum)
 trophies.trophy_titles
 trophies.trophy_titles(limit: 100, offset: 0)
 
@@ -108,7 +109,12 @@ trophies.title_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
 
 # Trophy earned status for a user on a title
 trophies.earned_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
+
+# Both trophy lists return every trophy unless paged with limit:/offset:
+trophies.title_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5', limit: 50, offset: 0)
 ```
+
+`limit` and `offset` must be Integers (`limit` at least 1, `offset` at least 0), or `ArgumentError` is raised. `trophy_titles` also rejects a `limit` above 800.
 
 ### User data
 
