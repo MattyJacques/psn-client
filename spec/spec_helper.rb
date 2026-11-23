@@ -10,6 +10,9 @@ SimpleCov.start do
 end
 
 require 'psn/client'
+# Blocks real network connections in every spec; spec/integration stubs them per example.
+require 'webmock/rspec'
+require_relative 'support/http_integration'
 require_relative 'support/http_responses'
 
 RSpec.configure do |config|
@@ -20,6 +23,7 @@ RSpec.configure do |config|
   config.disable_monkey_patching!
 
   config.include HTTPResponses
+  config.include HTTPIntegration, :integration
 
   config.expect_with :rspec do |c|
     c.syntax = :expect

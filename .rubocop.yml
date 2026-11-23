@@ -7,6 +7,11 @@ AllCops:
   TargetRubyVersion: 3.1
   NewCops: enable
 
+# Integration specs describe behaviour across classes rather than one class.
+RSpec/DescribeClass:
+  Exclude:
+    - 'spec/integration/**/*'
+
 RSpec/ExampleLength:
   Max: 15
 

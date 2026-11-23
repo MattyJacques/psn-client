@@ -1,0 +1,9 @@
+# Stand-ins for the oauth2 types named in sig/, so `rake rbs` can resolve them.
+# oauth2's own signatures depend on Faraday's, which are not published with the gem.
+module OAuth2
+  class Client
+  end
+
+  class AccessToken
+  end
+end

@@ -10,11 +10,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 bin/setup                                   # bundle install (run first; nothing works under `bundle exec` until gems are installed)
-bundle exec rake                            # default task: spec + rubocop — exactly what CI runs (Ruby 3.1–3.4 matrix)
+bundle exec rake                            # default task: spec + rubocop + rbs — exactly what CI runs (Ruby 3.1–3.4 matrix)
 bundle exec rspec                           # all specs; writes a SimpleCov report to coverage/
 bundle exec rspec spec/psn/client/trophies_spec.rb       # one file
 bundle exec rspec spec/psn/client/trophies_spec.rb:55    # one example/group by line
 bundle exec rspec --only-failures           # re-run failures (tracked in .rspec_status)
+bundle exec rake rbs                        # `rbs validate` over sig/ (syntax and type names only; it does not compare sig/ with lib/)
 bundle exec rubocop                         # lint; `-a` (or `rake rubocop:autocorrect`) for safe autocorrect
 bin/console                                 # IRB with the gem loaded
 bundle exec ruby bin/verify_trophies.rb     # live smoke test against the real PSN API (needs the env vars below)
@@ -51,11 +52,13 @@ Things that are easy to get wrong:
 
 ## Testing conventions
 
-No HTTP-mocking library is used and specs never touch the network. Collaborators are stubbed with `instance_double`:
+Specs never touch the network: `spec_helper` requires `webmock/rspec`, which blocks real connections everywhere. Unit specs (`spec/psn/`) do not use WebMock's stubs; collaborators are stubbed with `instance_double`:
 
 - `Trophies` specs pass a `Request` double as `request:`, stub `#get` and assert on the exact path string and `params:` hash. `Users` and `Account` specs inject the double the same way and assert on `#get`/`#graphql` arguments. Only each `#initialize` group stubs `Request.new`, to cover the access-token path.
 - Stubs (`allow`) go in `before` blocks, never inside `it`; check calls afterwards with `have_received`. No cop enforces this.
 - `Auth` specs stub `Net::HTTP.new`, `OAuth2::Client`, `ENV.fetch`, and `PSN.logger`; `Request` specs stub `Net::HTTP.start`. Both return real `Net::HTTPResponse` objects built with `http_response(code, body, headers)` (`spec/support/http_responses.rb`, included in every example), because errors read `code`, `each_header` and `body`.
+
+`spec/integration/` holds the end-to-end specs (tagged `:integration`, which mixes in `HTTPIntegration` from `spec/support/http_integration.rb`). They drive a real `Session` and let WebMock intercept the HTTP: `stub_request` in `before`, then `a_request(...).with(query:, headers:)` to assert on what went over the wire. Responses come from `spec/fixtures/*.json` via `fixture(name)` (raw body) or `json_fixture(name, status:, headers:)` (a `to_return` hash). Fixtures copy the shape of live responses but every value is made up — never commit a captured response without replacing account IDs, online IDs, device IDs and game data. Keep these few: one per kind of call or failure, not one per method.
 
 Monkey-patching is disabled (`RSpec.describe` and `expect` syntax only). RuboCop RSpec limits are set in `.rubocop.yml`: 15 lines per example, 3 expectations per example, 10 memoized helpers, 4 nesting levels. `Metrics/ClassLength` is raised to 150 lines, and `Metrics/ParameterLists` is disabled only for `trophies.rb`.
 
@@ -64,5 +67,5 @@ Monkey-patching is disabled (`RSpec.describe` and `expect` syntax only). RuboCop
 - Introduce no new RuboCop offenses.
 - Every Ruby file starts with `# frozen_string_literal: true`.
 - New functionality and bug fixes need RSpec coverage.
-- Update the RBS signatures in `sig/` whenever a method signature changes or a public method is added. `sig/` mirrors `lib/` one-to-one and includes private methods; nothing type-checks it in CI, so it must be kept in sync by hand.
+- Update the RBS signatures in `sig/` whenever a method signature changes or a public method is added. `sig/` mirrors `lib/` one-to-one and includes private methods. CI runs `rake rbs`, which catches syntax errors and unknown type names but not drift from `lib/`, so it must still be kept in sync by hand. A third-party type named in `sig/` needs a stand-in under `spec/support/sig/` (as `OAuth2` has) or a `-r` library in the Rakefile.
 - When public API changes, update the `README.md` usage section and add an entry under `[Unreleased]` in `CHANGELOG.md`.
