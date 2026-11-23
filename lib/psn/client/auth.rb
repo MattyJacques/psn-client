@@ -5,7 +5,6 @@ require 'uri'
 require 'oauth2'
 require 'json'
 require_relative 'errors'
-require_relative 'response_recorder'
 
 module PSN
   module Client
@@ -55,11 +54,15 @@ module PSN
       end
 
       def request_auth_code(uri)
-        http = Net::HTTP.new(uri.host, uri.port)
-        http.use_ssl = uri.scheme == 'https'
-        http.request(request_for(uri))
+        http_for(uri).request(request_for(uri))
       rescue *TransportError::NETWORK_ERRORS => e
         log_and_raise TransportError.new("PSN authorisation request failed: #{e.class}: #{e.message}")
+      end
+
+      def http_for(uri)
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = uri.scheme == 'https'
+        http
       end
 
       def request_for(uri)
@@ -82,16 +85,17 @@ module PSN
         when OAuth2::Error
           AuthenticationError.new("PSN token exchange failed: #{error.description || error.message}",
                                   error_code: error.code, **Error.details_from(error.response))
-        when JSON::ParserError
-          ParseError.new("PSN token response was not valid JSON: #{error.message}",
-                         **Error.details_from(@token_response))
+        # oauth2 parses the token body before returning the response, so none is available to attach.
+        when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
         else TransportError.new("PSN token request failed: #{error.class}: #{error.message}")
         end
       end
 
       def parse_code(response)
         params = URI.decode_www_form(URI(response['location']).query.to_s).to_h
-        return params['code'] if params['code']
+        code = params['code']
+
+        return code if code
 
         fail_with(get_error_message(params['error'], params['error_description']), response,
                   error_code: params['error'])
@@ -124,9 +128,7 @@ module PSN
       end
 
       def client
-        @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', DEFAULT_CLIENT_ID), '', site: AUTH_URL) do |builder|
-          ResponseRecorder.default_stack(builder, ->(response) { @token_response = response })
-        end
+        @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', DEFAULT_CLIENT_ID), '', site: AUTH_URL)
       end
 
       def auth_url

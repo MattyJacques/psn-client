@@ -13,6 +13,7 @@ module PSN
 
       def fetch_auth_code: () -> String
       def request_auth_code: (URI::Generic) -> Net::HTTPResponse
+      def http_for: (URI) -> Net::HTTP
       def request_for: (URI) -> Net::HTTP::Get
       def fetch_token: (String) -> OAuth2::AccessToken
       def token_error: (StandardError) -> Error
