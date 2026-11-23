@@ -143,6 +143,22 @@ RSpec.describe PSN::Client::Request do
       end
     end
 
+    context 'when a successful response has no body' do
+      let(:response) { http_response(204, nil) }
+
+      it 'returns nil' do
+        expect(request_service.get('/test')).to be_nil
+      end
+    end
+
+    context 'when a successful response has an empty body' do
+      let(:response) { http_response(200, '') }
+
+      it 'returns nil' do
+        expect(request_service.get('/test')).to be_nil
+      end
+    end
+
     context 'when a successful response is not JSON' do
       let(:response) { http_response(200, '<html>') }
 

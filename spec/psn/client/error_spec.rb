@@ -32,6 +32,13 @@ RSpec.describe PSN::Client::Error do
       expect(error_with('retry-after' => '120').retry_at).to eq(now + 120)
     end
 
+    it 'fixes a relative Retry-After deadline when the error is created' do
+      error = error_with('retry-after' => '120')
+      allow(Time).to receive(:now).and_return(now + 60)
+
+      expect(error.retry_at).to eq(now + 120)
+    end
+
     it 'reads Retry-After as an HTTP date' do
       expect(error_with('retry-after' => 'Wed, 21 Oct 2015 07:28:00 GMT').retry_at)
         .to eq(Time.utc(2015, 10, 21, 7, 28, 0))

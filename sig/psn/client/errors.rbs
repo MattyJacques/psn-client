@@ -5,7 +5,7 @@ module PSN
       attr_reader headers: Hash[String, String]
       attr_reader body: String?
 
-      def self.details_from: (Net::HTTPResponse response) -> { status: Integer, headers: Hash[String, String], body: String? }
+      def self.details_from: (untyped response) -> Hash[Symbol, untyped]
 
       def initialize: (?String? message, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
     end
@@ -20,7 +20,13 @@ module PSN
     end
 
     class RateLimitError < Error
-      def retry_at: () -> Time?
+      attr_reader retry_at: Time?
+
+      def initialize: (?String? message, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
+
+      private
+
+      def parse_retry_at: (Time now) -> Time?
     end
 
     class GraphQLError < Error

@@ -140,10 +140,10 @@ Every error the gem raises from a PSN call is a `PSN::Client::Error` (argument v
 | --- | --- |
 | `PSN::Client::AuthenticationError` | `Auth.authenticate` fails (expired or invalid NPSSO, rejected token exchange), or an API call returns HTTP 401. `error_code` holds Sony's OAuth error code, such as `"login_required"` for an expired NPSSO. |
 | `PSN::Client::PrivacyError` | HTTP 403 caused by the target user's privacy settings |
-| `PSN::Client::RateLimitError` | HTTP 429. `retry_at` is a `Time` from `X-RateLimit-Next-Available` or `Retry-After`, or `nil` |
+| `PSN::Client::RateLimitError` | HTTP 429. `retry_at` is a `Time` from `X-RateLimit-Next-Available` or `Retry-After` (seconds counted from when the error was raised), or `nil` |
 | `PSN::Client::GraphQLError` | A GraphQL response carries `errors`, even on HTTP 200. `errors` is the raw array and `data` any partial result |
 | `PSN::Client::TransportError` | No response was received: DNS, connection, TLS or timeout failure |
-| `PSN::Client::ParseError` | A successful response body is not valid JSON |
+| `PSN::Client::ParseError` | A successful response body, or the token exchange response, is not valid JSON (an empty body returns `nil` instead) |
 | `PSN::Client::Error` | Any other non-2xx response |
 
 Errors built from a response expose `status` (Integer), `headers` (Hash with lowercase names) and `body` (raw String); otherwise these are `nil`/empty. The original exception, for transport, parse and token-exchange failures, is available from `cause`.

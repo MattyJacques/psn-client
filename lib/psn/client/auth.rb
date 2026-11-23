@@ -46,7 +46,8 @@ module PSN
         response = request_auth_code(uri)
         if response['location'].nil?
           body = parse_json(response.body)
-          fail_with(extract_error_message(body), response, error_code: body['error'])
+          fail_with(body['error_description'] || 'Failed to fetch PSN auth code, location header missing', response,
+                    error_code: body['error'])
         end
 
         parse_code(response)
@@ -75,11 +76,18 @@ module PSN
                                    redirect_uri: 'com.scee.psxandroid.scecompcall://redirect',
                                    token_format: 'jwt',
                                    headers: { Authorization: "Basic #{BASIC_TOKEN}" })
-      rescue OAuth2::Error => e
-        log_and_raise AuthenticationError.new("PSN token exchange failed: #{e.description || e.message}",
-                                              error_code: e.code, **oauth_response_details(e.response))
-      rescue Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
-        log_and_raise TransportError.new("PSN token request failed: #{e.class}: #{e.message}")
+      rescue OAuth2::Error, JSON::ParserError, Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
+        log_and_raise token_error(e)
+      end
+
+      def token_error(error)
+        case error
+        when OAuth2::Error
+          AuthenticationError.new("PSN token exchange failed: #{error.description || error.message}",
+                                  error_code: error.code, **Error.details_from(error.response))
+        when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
+        else TransportError.new("PSN token request failed: #{error.class}: #{error.message}")
+        end
       end
 
       def parse_code(response)
@@ -106,16 +114,6 @@ module PSN
         parsed.is_a?(Hash) ? parsed : {}
       rescue JSON::ParserError
         {}
-      end
-
-      def extract_error_message(body)
-        body['error_description'] || 'Failed to fetch PSN auth code, location header missing'
-      end
-
-      def oauth_response_details(response)
-        return {} unless response.respond_to?(:status)
-
-        { status: response.status, headers: response.headers.to_h.transform_keys(&:downcase), body: response.body }
       end
 
       def get_error_message(error, error_description = nil)

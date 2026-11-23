@@ -12,9 +12,16 @@ module PSN
     class Error < StandardError
       attr_reader :status, :headers, :body
 
-      # Keyword arguments for +new+ taken from a Net::HTTPResponse; header names are lowercased.
+      # Keyword arguments for +new+ taken from a Net::HTTPResponse or an OAuth2::Response;
+      # header names are lowercased. Anything else yields no details.
       def self.details_from(response)
-        { status: Integer(response.code, 10), headers: response.each_header.to_h, body: response.body }
+        if response.respond_to?(:each_header)
+          { status: Integer(response.code, 10), headers: response.each_header.to_h, body: response.body }
+        elsif response.respond_to?(:status)
+          { status: response.status, headers: response.headers.to_h.transform_keys(&:downcase), body: response.body }
+        else
+          {}
+        end
       end
 
       def initialize(message = nil, status: nil, headers: {}, body: nil)
@@ -42,15 +49,25 @@ module PSN
 
     # HTTP 429. +retry_at+ is when Sony says requests will be accepted again, taken
     # from X-RateLimit-Next-Available or Retry-After, or nil when neither is usable.
+    # A relative Retry-After is resolved against the time the error was created.
     class RateLimitError < Error
-      def retry_at
+      attr_reader :retry_at
+
+      def initialize(message = nil, **details)
+        super
+        @retry_at = parse_retry_at(Time.now)
+      end
+
+      private
+
+      def parse_retry_at(now)
         next_available = headers['x-ratelimit-next-available']
         return Time.at(Integer(next_available, 10)) if next_available
 
         retry_after = headers['retry-after']
         return unless retry_after
 
-        retry_after.match?(/\A\d+\z/) ? Time.now + Integer(retry_after, 10) : Time.httpdate(retry_after)
+        retry_after.match?(/\A\d+\z/) ? now + Integer(retry_after, 10) : Time.httpdate(retry_after)
       rescue ArgumentError
         nil
       end
@@ -74,7 +91,7 @@ module PSN
                         Net::ProtocolError, Net::HTTPBadResponse].freeze
     end
 
-    # A successful response whose body was not valid JSON.
+    # A successful response (or token exchange) whose body was not valid JSON.
     class ParseError < Error; end
   end
 end

@@ -97,6 +97,8 @@ module PSN
         raise error_class_for(response).new(failure_message(response), **Error.details_from(response)) \
           unless response.is_a?(Net::HTTPSuccess)
 
+        return if response.body.nil? || response.body.empty?
+
         begin
           JSON.parse(response.body)
         rescue JSON::ParserError => e

@@ -265,6 +265,19 @@ RSpec.describe PSN::Client::Auth do
       end
     end
 
+    context 'when the token response is malformed JSON' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+      end
+
+      it 'raises ParseError wrapping the JSON error' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
+          expect(e.cause).to be_a(JSON::ParserError)
+        end
+      end
+    end
+
     context 'when the token request times out' do
       before do
         allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
