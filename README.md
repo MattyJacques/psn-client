@@ -82,14 +82,14 @@ trophies = PSN::Client::Trophies.new(request: request)
 
 ### Trophy data
 
-Pass the access token to `PSN::Client::Trophies` and call the relevant method. All `user_id` parameters default to `'me'` (the authenticated user).
+Pass the access token to `PSN::Client::Trophies` and call the relevant method. All `user_id` parameters default to `'me'` (the authenticated user); for another player pass their numeric account ID (see `Users#account_id`), not their online ID.
 
 ```ruby
 trophies = PSN::Client::Trophies.new(access_token)
 
 # Overall trophy level, points, and earned counts
 trophies.trophy_summary
-trophies.trophy_summary(user_id: 'example_user')
+trophies.trophy_summary(user_id: '1234567890123456789')
 
 # List of trophy titles (games) for a user
 # (limit defaults to 800, the maximum)
@@ -114,7 +114,7 @@ trophies.earned_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5')
 trophies.title_trophies(np_communication_id: 'NPWR12345_00', platform: 'PS5', limit: 50, offset: 0)
 ```
 
-`limit` and `offset` must be Integers (`limit` at least 1, `offset` at least 0), or `ArgumentError` is raised. `trophy_titles` also rejects a `limit` above 800.
+`limit` and `offset` must be Integers (`limit` at least 1, `offset` at least 0), or `ArgumentError` is raised. `trophy_titles` also rejects a `limit` above 800. `ArgumentError` is raised too for a `user_id` that is not `'me'` or numeric, an `np_communication_id` that does not look like `NPWR12345_00`, or a `trophy_group_id` other than `'all'`, `'default'` or three digits such as `'001'`.
 
 ### User data
 

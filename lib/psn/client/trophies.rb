@@ -13,6 +13,11 @@ module PSN
       # trophy lists accept any limit of at least 1 (probed up to 100,000), so they
       # get no upper bound. Verified against the live API on 2026-11-23.
       TROPHY_TITLES_MAX_LIMIT = 800
+      # Sony answers HTTP 400 for anything else in these path segments, including
+      # online IDs as the user and lowercase communication IDs (verified live 2026-11-23).
+      USER_ID_PATTERN = /\A(me|\d+)\z/
+      NP_COMMUNICATION_ID_PATTERN = /\ANPWR\d{5}_\d{2}\z/
+      TROPHY_GROUP_ID_PATTERN = /\A(all|default|\d{3})\z/
 
       # Pass an access token, or `request:` to inject a Request (or any object
       # responding to the same methods) instead of building one.
@@ -24,39 +29,59 @@ module PSN
         validate_page_param!('limit', limit, min: 1, max: TROPHY_TITLES_MAX_LIMIT)
         validate_page_param!('offset', offset, min: 0)
 
-        @request.get("/trophy/v1/users/#{user_id}/trophyTitles", params: { 'limit' => limit, 'offset' => offset })
+        @request.get("/trophy/v1/users/#{user(user_id)}/trophyTitles", params: { 'limit' => limit, 'offset' => offset })
       end
 
       def trophy_summary(user_id: 'me')
-        path = "/trophy/v1/users/#{user_id}/trophySummary"
+        path = "/trophy/v1/users/#{user(user_id)}/trophySummary"
         @request.get(path)
       end
 
       def title_trophy_groups(np_communication_id:, np_service_name: nil, platform: nil)
-        path = "/trophy/v1/npCommunicationIds/#{np_communication_id}/trophyGroups"
+        path = "/trophy/v1/npCommunicationIds/#{title(np_communication_id)}/trophyGroups"
         @request.get(path, params: title_params(np_service_name, platform))
       end
 
       def earned_trophy_groups(np_communication_id:, user_id: 'me', np_service_name: nil, platform: nil)
-        path = "/trophy/v1/users/#{user_id}/npCommunicationIds/#{np_communication_id}/trophyGroups"
+        path = "/trophy/v1/users/#{user(user_id)}/npCommunicationIds/#{title(np_communication_id)}/trophyGroups"
         @request.get(path, params: title_params(np_service_name, platform))
       end
 
       # `limit:` and `offset:` are optional; without a limit the API returns every trophy.
       def title_trophies(np_communication_id:, trophy_group_id: 'all', np_service_name: nil, platform: nil,
                          limit: nil, offset: nil)
-        path = "/trophy/v1/npCommunicationIds/#{np_communication_id}/trophyGroups/#{trophy_group_id}/trophies"
+        path = "/trophy/v1/npCommunicationIds/#{title(np_communication_id)}" \
+               "/trophyGroups/#{group(trophy_group_id)}/trophies"
         @request.get(path, params: title_params(np_service_name, platform, limit: limit, offset: offset))
       end
 
       def earned_trophies(np_communication_id:, user_id: 'me', trophy_group_id: 'all', np_service_name: nil,
                           platform: nil, limit: nil, offset: nil)
-        path = "/trophy/v1/users/#{user_id}/npCommunicationIds/#{np_communication_id}" \
-               "/trophyGroups/#{trophy_group_id}/trophies"
+        path = "/trophy/v1/users/#{user(user_id)}/npCommunicationIds/#{title(np_communication_id)}" \
+               "/trophyGroups/#{group(trophy_group_id)}/trophies"
         @request.get(path, params: title_params(np_service_name, platform, limit: limit, offset: offset))
       end
 
       private
+
+      def user(user_id)
+        segment('PSN user ID', user_id, USER_ID_PATTERN)
+      end
+
+      def title(np_communication_id)
+        segment('NP communication ID', np_communication_id, NP_COMMUNICATION_ID_PATTERN)
+      end
+
+      def group(trophy_group_id)
+        segment('trophy group ID', trophy_group_id, TROPHY_GROUP_ID_PATTERN)
+      end
+
+      # Returns the value for interpolation into a path once it matches its pattern.
+      def segment(name, value, pattern)
+        return value if value.to_s.match?(pattern)
+
+        raise ArgumentError, "invalid #{name}: #{value.inspect}"
+      end
 
       # Query parameters for the title-scoped endpoints; anything left nil is omitted.
       def title_params(service_name, platform, limit: nil, offset: nil)

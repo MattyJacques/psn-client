@@ -21,10 +21,10 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'passes parameters correctly' do
-      trophies.trophy_titles(user_id: 'other', limit: 10, offset: 5)
+      trophies.trophy_titles(user_id: '12345', limit: 10, offset: 5)
 
       expect(request).to have_received(:get)
-        .with('/trophy/v1/users/other/trophyTitles', params: { 'limit' => 10, 'offset' => 5 })
+        .with('/trophy/v1/users/12345/trophyTitles', params: { 'limit' => 10, 'offset' => 5 })
     end
 
     it 'rejects a limit above the maximum' do
@@ -42,6 +42,16 @@ RSpec.describe PSN::Client::Trophies do
       [-1, 1.5, '0', nil].each do |bad|
         expect { trophies.trophy_titles(offset: bad) }
           .to raise_error(ArgumentError, /offset must be an Integer at least 0/)
+      end
+    end
+
+    it 'accepts an Integer user_id' do
+      expect { trophies.trophy_titles(user_id: 12_345) }.not_to raise_error
+    end
+
+    it 'rejects user IDs that are not "me" or numeric' do
+      ['example_user', '1/../x', '1?limit=999', "1\n", '', nil].each do |bad|
+        expect { trophies.trophy_titles(user_id: bad) }.to raise_error(ArgumentError, /invalid PSN user ID/)
       end
     end
   end
@@ -70,6 +80,16 @@ RSpec.describe PSN::Client::Trophies do
         trophies.trophy_summary(user_id: '12345')
 
         expect(request).to have_received(:get).with('/trophy/v1/users/12345/trophySummary')
+      end
+    end
+
+    it 'accepts an Integer user_id' do
+      expect { trophies.trophy_summary(user_id: 12_345) }.not_to raise_error
+    end
+
+    it 'rejects user IDs that are not "me" or numeric' do
+      ['example_user', '1/../x', '1?limit=999', "1\n", '', nil].each do |bad|
+        expect { trophies.trophy_summary(user_id: bad) }.to raise_error(ArgumentError, /invalid PSN user ID/)
       end
     end
   end
@@ -117,6 +137,13 @@ RSpec.describe PSN::Client::Trophies do
       expect do
         trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4', np_service_name: 'trophy')
       end.to raise_error(ArgumentError, /Provide either np_service_name or platform, not both/)
+    end
+
+    it 'rejects malformed np_communication_ids' do
+      ['npwr12345_00', 'NPWR1234_00', 'NPWR12345_00/../x', 'NPWR12345_00?x=1', '', nil].each do |bad|
+        expect { trophies.title_trophy_groups(np_communication_id: bad) }
+          .to raise_error(ArgumentError, /invalid NP communication ID/)
+      end
     end
   end
 
@@ -171,6 +198,24 @@ RSpec.describe PSN::Client::Trophies do
       expect do
         trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4', np_service_name: 'trophy')
       end.to raise_error(ArgumentError, /Provide either np_service_name or platform, not both/)
+    end
+
+    it 'rejects malformed np_communication_ids' do
+      ['npwr12345_00', 'NPWR1234_00', 'NPWR12345_00/../x', 'NPWR12345_00?x=1', '', nil].each do |bad|
+        expect { trophies.earned_trophy_groups(np_communication_id: bad) }
+          .to raise_error(ArgumentError, /invalid NP communication ID/)
+      end
+    end
+
+    it 'accepts an Integer user_id' do
+      expect { trophies.earned_trophy_groups(np_communication_id: np_comm_id, user_id: 12_345) }.not_to raise_error
+    end
+
+    it 'rejects user IDs that are not "me" or numeric' do
+      ['example_user', '1/../x', '1?limit=999', "1\n", '', nil].each do |bad|
+        expect { trophies.earned_trophy_groups(np_communication_id: np_comm_id, user_id: bad) }
+          .to raise_error(ArgumentError, /invalid PSN user ID/)
+      end
     end
   end
 
@@ -280,6 +325,24 @@ RSpec.describe PSN::Client::Trophies do
     it 'rejects unknown keywords' do
       expect { trophies.title_trophies(np_communication_id: np_comm_id, limt: 10) }
         .to raise_error(ArgumentError, /unknown keyword/)
+    end
+
+    it 'rejects malformed np_communication_ids' do
+      ['npwr12345_00', 'NPWR1234_00', 'NPWR12345_00/../x', 'NPWR12345_00?x=1', '', nil].each do |bad|
+        expect { trophies.title_trophies(np_communication_id: bad) }
+          .to raise_error(ArgumentError, /invalid NP communication ID/)
+      end
+    end
+
+    it 'accepts the default trophy group' do
+      expect { trophies.title_trophies(np_communication_id: np_comm_id, trophy_group_id: 'default') }.not_to raise_error
+    end
+
+    it 'rejects malformed trophy_group_ids' do
+      ['ALL', '1', '0001', 'all/../x', '001?x=1', '', nil].each do |bad|
+        expect { trophies.title_trophies(np_communication_id: np_comm_id, trophy_group_id: bad) }
+          .to raise_error(ArgumentError, /invalid trophy group ID/)
+      end
     end
   end
 
@@ -397,6 +460,36 @@ RSpec.describe PSN::Client::Trophies do
     it 'rejects unknown keywords' do
       expect { trophies.earned_trophies(np_communication_id: np_comm_id, limt: 10) }
         .to raise_error(ArgumentError, /unknown keyword/)
+    end
+
+    it 'rejects malformed np_communication_ids' do
+      ['npwr12345_00', 'NPWR1234_00', 'NPWR12345_00/../x', 'NPWR12345_00?x=1', '', nil].each do |bad|
+        expect { trophies.earned_trophies(np_communication_id: bad) }
+          .to raise_error(ArgumentError, /invalid NP communication ID/)
+      end
+    end
+
+    it 'accepts the default trophy group' do
+      expect { trophies.earned_trophies(np_communication_id: np_comm_id, trophy_group_id: 'default') }
+        .not_to raise_error
+    end
+
+    it 'rejects malformed trophy_group_ids' do
+      ['ALL', '1', '0001', 'all/../x', '001?x=1', '', nil].each do |bad|
+        expect { trophies.earned_trophies(np_communication_id: np_comm_id, trophy_group_id: bad) }
+          .to raise_error(ArgumentError, /invalid trophy group ID/)
+      end
+    end
+
+    it 'accepts an Integer user_id' do
+      expect { trophies.earned_trophies(np_communication_id: np_comm_id, user_id: 12_345) }.not_to raise_error
+    end
+
+    it 'rejects user IDs that are not "me" or numeric' do
+      ['example_user', '1/../x', '1?limit=999', "1\n", '', nil].each do |bad|
+        expect { trophies.earned_trophies(np_communication_id: np_comm_id, user_id: bad) }
+          .to raise_error(ArgumentError, /invalid PSN user ID/)
+      end
     end
   end
 
