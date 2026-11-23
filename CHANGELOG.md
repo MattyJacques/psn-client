@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-23
+
 - `PSN_CLIENT_ID` and `PSN_BASIC_TOKEN` are now optional. They default to the PlayStation app's public OAuth client, so only `PSN_NPSSO` is required
 - Added `PSN::Client::Users` with `search`, `account_id`, `profile`, `profile_by_account_id` and `played_games`
 - Added `PSN::Client::Account` with `devices`, `library`, `purchased_games` and `summary`
