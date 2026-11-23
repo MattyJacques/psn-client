@@ -15,10 +15,12 @@ module PSN
       private
 
       def authorize: (Net::HTTPRequest request, Hash[String, String] headers) -> Net::HTTPRequest
-      def raise_graphql_errors: (untyped result) -> void
+      def raise_graphql_errors: (untyped result, Net::HTTPResponse response) -> void
       def build_uri: (Symbol host, String path, Hash[untyped, untyped] params) -> URI::Generic
-      def perform: (URI::Generic uri, Net::HTTPRequest http_request) -> untyped
+      def perform: (URI::Generic uri, Net::HTTPRequest http_request) -> [untyped, Net::HTTPResponse]
       def parse_response: (Net::HTTPResponse response) -> untyped
+      def error_class_for: (Net::HTTPResponse response) -> singleton(Error)
+      def failure_message: (Net::HTTPResponse response) -> String
       def privacy_error?: (Net::HTTPResponse response) -> bool
     end
   end

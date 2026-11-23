@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+- **Breaking:** `Auth.authenticate` raises `PSN::Client::AuthenticationError` (or `TransportError`) instead of `RuntimeError`. Code rescuing `RuntimeError` must rescue `PSN::Client::Error` or a subclass
+- **Breaking:** an API response of HTTP 401 raises `PSN::Client::AuthenticationError`, and GraphQL errors raise `PSN::Client::GraphQLError`. Both are still `PSN::Client::Error` subclasses
+- Added structured errors: `PSN::Client::Error` now exposes `status`, `headers` and `body`, and new subclasses `AuthenticationError` (`error_code`), `RateLimitError` (`retry_at`), `GraphQLError` (`errors`, `data`), `TransportError` and `ParseError` cover authentication, HTTP 429, GraphQL, network and invalid-JSON failures
+- Network failures and invalid JSON bodies no longer escape as `Net::*`, `SocketError`, `Errno::*`, `Faraday::*` or `JSON::ParserError`; the original exception is kept as `cause`
+- A successful response with an empty body (such as HTTP 204) returns `nil` instead of raising `TypeError`
+
 ## [0.2.0] - 2026-11-23
 
 - `PSN_CLIENT_ID` and `PSN_BASIC_TOKEN` are now optional. They default to the PlayStation app's public OAuth client, so only `PSN_NPSSO` is required

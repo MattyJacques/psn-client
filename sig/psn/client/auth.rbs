@@ -12,12 +12,15 @@ module PSN
       private
 
       def fetch_auth_code: () -> String
+      def request_auth_code: (URI::Generic) -> Net::HTTPResponse
       def http_for: (URI) -> Net::HTTP
       def request_for: (URI) -> Net::HTTP::Get
       def fetch_token: (String) -> OAuth2::AccessToken
-      def parse_code: (String) -> String
-      def raise_auth_error: (Hash[String, String]) -> void
-      def extract_error_message: (untyped) -> String
+      def token_error: (StandardError) -> Error
+      def parse_code: (Net::HTTPResponse) -> String
+      def fail_with: (String, Net::HTTPResponse, error_code: String?) -> bot
+      def log_and_raise: (Error) -> bot
+      def parse_json: (String?) -> Hash[String, untyped]
       def get_error_message: (String?, ?String) -> String
       def client: () -> OAuth2::Client
       def auth_url: () -> String

@@ -1,0 +1,46 @@
+module PSN
+  module Client
+    class Error < StandardError
+      attr_reader status: Integer?
+      attr_reader headers: Hash[String, String]
+      attr_reader body: String?
+
+      def self.details_from: (untyped response) -> Hash[Symbol, untyped]
+
+      def initialize: (?String? message, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
+    end
+
+    class AuthenticationError < Error
+      attr_reader error_code: String?
+
+      def initialize: (?String? message, ?error_code: String?, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
+    end
+
+    class PrivacyError < Error
+    end
+
+    class RateLimitError < Error
+      attr_reader retry_at: Time?
+
+      def initialize: (?String? message, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
+
+      private
+
+      def parse_retry_at: (Time now) -> Time?
+    end
+
+    class GraphQLError < Error
+      attr_reader errors: Array[untyped]
+      attr_reader data: untyped
+
+      def initialize: (?String? message, ?errors: Array[untyped], ?data: untyped, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
+    end
+
+    class TransportError < Error
+      NETWORK_ERRORS: Array[Class]
+    end
+
+    class ParseError < Error
+    end
+  end
+end

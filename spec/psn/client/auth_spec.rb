@@ -68,7 +68,7 @@ RSpec.describe PSN::Client::Auth do
     end
 
     context 'when authentication succeeds' do
-      let(:response) { { 'location' => 'https://redirect.url?code=AUTH_CODE_123' } }
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect.url?code=AUTH_CODE_123') }
 
       before do
         allow(http).to receive(:request).and_return(response)
@@ -114,15 +114,17 @@ RSpec.describe PSN::Client::Auth do
     end
 
     context 'when the response has no location header' do
-      let(:response) { {} }
+      let(:response) { http_response(200, 'not json') }
 
       before do
         allow(http).to receive(:request).and_return(response)
       end
 
-      it 'raises an error' do
-        expect { auth.authenticate }
-          .to raise_error('Failed to fetch PSN auth code, location header missing')
+      it 'raises AuthenticationError' do
+        message = 'Failed to fetch PSN auth code, location header missing'
+        expect { auth.authenticate }.to raise_error(PSN::Client::AuthenticationError, message) do |e|
+          expect(e).to have_attributes(error_code: nil, status: 200, body: 'not json')
+        end
       end
 
       it 'logs the error' do
@@ -142,21 +144,17 @@ RSpec.describe PSN::Client::Auth do
         }.to_json
       end
 
-      let(:response) do
-        instance_double(
-          Net::HTTPResponse,
-          body: response_body
-        )
-      end
+      let(:response) { http_response(400, response_body) }
 
       before do
-        allow(response).to receive(:[]).with('location').and_return(nil)
         allow(http).to receive(:request).and_return(response)
       end
 
-      it 'raises the error description from the response body' do
+      it 'raises AuthenticationError with the error description and response details' do
         expect { auth.authenticate }
-          .to raise_error("Parameter 'client_id' is malformed")
+          .to raise_error(PSN::Client::AuthenticationError, "Parameter 'client_id' is malformed") do |e|
+          expect(e).to have_attributes(error_code: 'invalid_request', status: 400, body: response_body)
+        end
       end
 
       it 'logs the error description from the response body' do
@@ -168,15 +166,18 @@ RSpec.describe PSN::Client::Auth do
     end
 
     context 'when the NPSSO cookie has expired (login_required error)' do
-      let(:response) { { 'location' => 'https://redirect.url?state=abc&error=login_required' } }
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect.url?state=abc&error=login_required') }
 
       before do
         allow(http).to receive(:request).and_return(response)
       end
 
-      it 'raises an error indicating the NPSSO code has expired' do
+      it 'raises AuthenticationError indicating the NPSSO code has expired' do
         expect { auth.authenticate }
-          .to raise_error('PSN authorisation failed, NPSSO code has expired')
+          .to raise_error(PSN::Client::AuthenticationError, 'PSN authorisation failed, NPSSO code has expired') do |e|
+          expect(e).to have_attributes(error_code: 'login_required', status: 302)
+          expect(e.headers).to include('location' => 'https://redirect.url?state=abc&error=login_required')
+        end
       end
 
       it 'logs the error' do
@@ -188,7 +189,7 @@ RSpec.describe PSN::Client::Auth do
     end
 
     context 'when an unknown error is returned' do
-      let(:response) { { 'location' => 'https://redirect.url?state=abc&error=server_error' } }
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect.url?state=abc&error=server_error') }
 
       before do
         allow(http).to receive(:request).and_return(response)
@@ -202,9 +203,7 @@ RSpec.describe PSN::Client::Auth do
 
     context 'when an error description is returned in the redirect URL' do
       let(:response) do
-        {
-          'location' => 'https://redirect.url?state=abc&error=invalid_request&error_description=Parameter+client_id+is+malformed'
-        }
+        http_response(302, '', 'Location' => 'https://redirect.url?state=abc&error=invalid_request&error_description=Parameter+client_id+is+malformed')
       end
 
       before do
@@ -217,8 +216,83 @@ RSpec.describe PSN::Client::Auth do
       end
     end
 
+    context 'when the authorisation request cannot connect' do
+      before do
+        allow(http).to receive(:request).and_raise(SocketError, 'getaddrinfo failed')
+      end
+
+      it 'raises TransportError wrapping the network error' do
+        expect { auth.authenticate }
+          .to raise_error(PSN::Client::TransportError, /SocketError: getaddrinfo failed/) do |e|
+          expect(e.cause).to be_a(SocketError)
+        end
+        expect(logger).to have_received(:error).with(/PSN authorisation request failed/)
+      end
+    end
+
+    context 'when the token exchange is rejected' do
+      let(:token_response) do
+        instance_double(OAuth2::Response, status: 400, headers: { 'Content-Type' => 'application/json' },
+                                          body: '{"error":"invalid_grant"}',
+                                          parsed: { 'error' => 'invalid_grant', 'error_description' => 'Bad code' })
+      end
+
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_raise(OAuth2::Error.new(token_response))
+      end
+
+      it 'raises AuthenticationError with the OAuth details' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::AuthenticationError, /Bad code/) do |e|
+          expect(e).to have_attributes(error_code: 'invalid_grant', status: 400, body: '{"error":"invalid_grant"}',
+                                       headers: { 'content-type' => 'application/json' })
+          expect(e.cause).to be_a(OAuth2::Error)
+        end
+      end
+    end
+
+    context 'when the token exchange is rejected without a response object' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token)
+          .and_raise(OAuth2::Error.new('error' => 'invalid_grant'))
+      end
+
+      it 'raises AuthenticationError without HTTP details' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::AuthenticationError) do |e|
+          expect(e).to have_attributes(error_code: 'invalid_grant', status: nil)
+        end
+      end
+    end
+
+    context 'when the token response is malformed JSON' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+      end
+
+      it 'raises ParseError wrapping the JSON error' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
+          expect(e.cause).to be_a(JSON::ParserError)
+        end
+      end
+    end
+
+    context 'when the token request times out' do
+      before do
+        allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
+        allow(auth_code_strategy).to receive(:get_token).and_raise(Faraday::TimeoutError)
+      end
+
+      it 'raises TransportError' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::TransportError, /PSN token request failed/) do |e|
+          expect(e.cause).to be_a(Faraday::TimeoutError)
+        end
+      end
+    end
+
     context 'when the authorization code contains special characters' do
-      let(:response) { { 'location' => 'https://redirect.url?code=v3:ABC-123_test.foo/bar=' } }
+      let(:response) { http_response(302, '', 'Location' => 'https://redirect.url?code=v3:ABC-123_test.foo/bar=') }
 
       before do
         allow(http).to receive(:request).and_return(response)

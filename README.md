@@ -98,7 +98,7 @@ users.played_games(user_id: '1234567890123456789', limit: 50, offset: 0)
 
 `profile` and `account_id` raise `ArgumentError` for an invalid online ID, `profile_by_account_id` for a non-numeric account ID, and `played_games` for a `user_id` that is not `'me'` or numeric, or a `limit` above 200.
 
-If a user's privacy settings block the request, Sony responds with HTTP 403 and the client raises `PSN::Client::PrivacyError`, a subclass of `PSN::Client::Error`.
+If a user's privacy settings block the request, Sony responds with HTTP 403 and the client raises `PSN::Client::PrivacyError` (see [Errors](#errors)).
 
 ```ruby
 begin
@@ -131,6 +131,41 @@ account.summary.dig('data', 'oracleUserProfileRetrieve')
 ```
 
 `library` raises `ArgumentError` for a `limit` above 100. `library`, `purchased_games` and `summary` return the raw GraphQL response body.
+
+### Errors
+
+Every error the gem raises from a PSN call is a `PSN::Client::Error` (argument validation still raises `ArgumentError`). Rescue a subclass to handle a specific failure:
+
+| Class | Raised when |
+| --- | --- |
+| `PSN::Client::AuthenticationError` | `Auth.authenticate` fails (expired or invalid NPSSO, rejected token exchange), or an API call returns HTTP 401. `error_code` holds Sony's OAuth error code, such as `"login_required"` for an expired NPSSO. |
+| `PSN::Client::PrivacyError` | HTTP 403 caused by the target user's privacy settings |
+| `PSN::Client::RateLimitError` | HTTP 429. `retry_at` is a `Time` from `X-RateLimit-Next-Available` or `Retry-After` (seconds counted from when the error was raised), or `nil` |
+| `PSN::Client::GraphQLError` | A GraphQL response carries `errors`, even on HTTP 200. `errors` is the raw array and `data` any partial result |
+| `PSN::Client::TransportError` | No response was received: DNS, connection, TLS or timeout failure |
+| `PSN::Client::ParseError` | A successful response body, or the token exchange response, is not valid JSON (an empty body returns `nil` instead) |
+| `PSN::Client::Error` | Any other non-2xx response |
+
+Errors built from a response expose `status` (Integer), `headers` (Hash with lowercase names) and `body` (raw String); otherwise these are `nil`/empty. The original exception, for transport, parse and token-exchange failures, is available from `cause`.
+
+```ruby
+reauthenticated = false
+begin
+  trophies.trophy_titles
+rescue PSN::Client::RateLimitError => e
+  sleep([e.retry_at - Time.now, 0].max) if e.retry_at
+  retry
+rescue PSN::Client::AuthenticationError
+  raise if reauthenticated # the fresh token was rejected too
+
+  reauthenticated = true
+  # API objects hold the token they were created with, so rebuild them with the new one
+  trophies = PSN::Client::Trophies.new(PSN::Client::Auth.authenticate)
+  retry
+rescue PSN::Client::Error => e
+  warn "PSN request failed (#{e.status.inspect}): #{e.message}"
+end
+```
 
 ## Development
 
