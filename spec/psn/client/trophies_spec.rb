@@ -11,21 +11,37 @@ RSpec.describe PSN::Client::Trophies do
     let(:response) { { 'trophyTitles' => [] } }
 
     before do
-      allow(request).to receive(:get).with('/trophy/v1/users/me/trophyTitles?limit=800&offset=0').and_return(response)
+      allow(request).to receive(:get).and_return(response)
     end
 
-    it 'delegates to Request' do
+    it 'requests the maximum page by default' do
       expect(trophies.trophy_titles).to eq(response)
+      expect(request).to have_received(:get)
+        .with('/trophy/v1/users/me/trophyTitles', params: { 'limit' => 800, 'offset' => 0 })
     end
 
-    context 'with parameters' do
-      before do
-        allow(request).to receive(:get).with('/trophy/v1/users/other/trophyTitles?limit=10&offset=5')
-                                       .and_return(response)
-      end
+    it 'passes parameters correctly' do
+      trophies.trophy_titles(user_id: 'other', limit: 10, offset: 5)
 
-      it 'passes parameters correctly' do
-        expect(trophies.trophy_titles(user_id: 'other', limit: 10, offset: 5)).to eq(response)
+      expect(request).to have_received(:get)
+        .with('/trophy/v1/users/other/trophyTitles', params: { 'limit' => 10, 'offset' => 5 })
+    end
+
+    it 'rejects a limit above the maximum' do
+      expect { trophies.trophy_titles(limit: 801) }
+        .to raise_error(ArgumentError, 'limit must be an Integer between 1 and 800, got 801')
+    end
+
+    it 'rejects a limit below 1 or not an Integer' do
+      [0, -1, 1.5, '5', nil].each do |bad|
+        expect { trophies.trophy_titles(limit: bad) }.to raise_error(ArgumentError, /limit must be an Integer/)
+      end
+    end
+
+    it 'rejects a negative or non-Integer offset' do
+      [-1, 1.5, '0', nil].each do |bad|
+        expect { trophies.trophy_titles(offset: bad) }
+          .to raise_error(ArgumentError, /offset must be an Integer at least 0/)
       end
     end
   end
@@ -67,34 +83,34 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'calls the correct endpoint with default values' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       expect(trophies.title_trophy_groups(np_communication_id: np_comm_id)).to eq(response)
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'accepts an explicit service name' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.title_trophy_groups(np_communication_id: np_comm_id, np_service_name: 'trophy')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS4 platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS5 platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy2"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.title_trophy_groups(np_communication_id: np_comm_id, platform: 'PS5')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'raises an error if both np_service_name and platform are provided' do
@@ -113,42 +129,42 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'calls the correct endpoint with default values' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       expect(trophies.earned_trophy_groups(np_communication_id: np_comm_id)).to eq(response)
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'accepts a custom user_id' do
-      path = "/trophy/v1/users/12345/npCommunicationIds/#{np_comm_id}/trophyGroups?"
+      path = "/trophy/v1/users/12345/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.earned_trophy_groups(user_id: '12345', np_communication_id: np_comm_id)
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'accepts an explicit service name' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.earned_trophy_groups(np_communication_id: np_comm_id, np_service_name: 'trophy')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS4 platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS4')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS5 platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups?npServiceName=trophy2"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups"
 
       trophies.earned_trophy_groups(np_communication_id: np_comm_id, platform: 'PS5')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'raises an error if both np_service_name and platform are provided' do
@@ -167,58 +183,58 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'calls the correct endpoint with default values' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       expect(trophies.title_trophies(np_communication_id: np_comm_id)).to eq(response)
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'derives service name for PS4 platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, platform: 'PS4')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS5 platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy2"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, platform: 'PS5')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'derives service name for PS3 platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, platform: 'PS3')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PSVita platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, platform: 'PSVita')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PC platform' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy2"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, platform: 'PC')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'accepts a custom trophy_group_id' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/001/trophies?"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/001/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, trophy_group_id: '001')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'raises an error if both np_service_name and platform are provided' do
@@ -228,11 +244,42 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'includes limit and offset when provided' do
-      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?limit=10&offset=5"
+      path = "/trophy/v1/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.title_trophies(np_communication_id: np_comm_id, limit: 10, offset: 5)
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'limit' => 10, 'offset' => 5 })
+    end
+
+    it 'sends an offset without a limit' do
+      trophies.title_trophies(np_communication_id: np_comm_id, offset: 5)
+
+      expect(request).to have_received(:get).with(anything, params: { 'offset' => 5 })
+    end
+
+    it 'sets no upper bound on limit' do
+      trophies.title_trophies(np_communication_id: np_comm_id, limit: 100_000)
+
+      expect(request).to have_received(:get).with(anything, params: { 'limit' => 100_000 })
+    end
+
+    it 'rejects a limit below 1 or not an Integer' do
+      [0, -1, 1.5, '5'].each do |bad|
+        expect { trophies.title_trophies(np_communication_id: np_comm_id, limit: bad) }
+          .to raise_error(ArgumentError, /limit must be an Integer at least 1/)
+      end
+    end
+
+    it 'rejects a negative or non-Integer offset' do
+      [-1, 1.5, '0'].each do |bad|
+        expect { trophies.title_trophies(np_communication_id: np_comm_id, offset: bad) }
+          .to raise_error(ArgumentError, /offset must be an Integer at least 0/)
+      end
+    end
+
+    it 'rejects unknown keywords' do
+      expect { trophies.title_trophies(np_communication_id: np_comm_id, limt: 10) }
+        .to raise_error(ArgumentError, /unknown keyword/)
     end
   end
 
@@ -245,66 +292,66 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'calls the correct endpoint with default values' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       expect(trophies.earned_trophies(np_communication_id: np_comm_id)).to eq(response)
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'accepts a custom user_id' do
-      path = "/trophy/v1/users/12345/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?"
+      path = "/trophy/v1/users/12345/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(user_id: '12345', np_communication_id: np_comm_id)
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'derives service name for PS4 platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, platform: 'PS4')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PS5 platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy2"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, platform: 'PS5')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'derives service name for PS3 platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, platform: 'PS3')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PSVita platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, platform: 'PSVita')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy' })
     end
 
     it 'derives service name for PC platform' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?npServiceName=trophy2"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, platform: 'PC')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'npServiceName' => 'trophy2' })
     end
 
     it 'accepts a custom trophy_group_id' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/001/trophies?"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/001/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, trophy_group_id: '001')
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: {})
     end
 
     it 'raises an error if both np_service_name and platform are provided' do
@@ -314,11 +361,42 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     it 'includes limit and offset when provided' do
-      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies?limit=10&offset=5"
+      path = "/trophy/v1/users/me/npCommunicationIds/#{np_comm_id}/trophyGroups/all/trophies"
 
       trophies.earned_trophies(np_communication_id: np_comm_id, limit: 10, offset: 5)
 
-      expect(request).to have_received(:get).with(path)
+      expect(request).to have_received(:get).with(path, params: { 'limit' => 10, 'offset' => 5 })
+    end
+
+    it 'sends an offset without a limit' do
+      trophies.earned_trophies(np_communication_id: np_comm_id, offset: 5)
+
+      expect(request).to have_received(:get).with(anything, params: { 'offset' => 5 })
+    end
+
+    it 'sets no upper bound on limit' do
+      trophies.earned_trophies(np_communication_id: np_comm_id, limit: 100_000)
+
+      expect(request).to have_received(:get).with(anything, params: { 'limit' => 100_000 })
+    end
+
+    it 'rejects a limit below 1 or not an Integer' do
+      [0, -1, 1.5, '5'].each do |bad|
+        expect { trophies.earned_trophies(np_communication_id: np_comm_id, limit: bad) }
+          .to raise_error(ArgumentError, /limit must be an Integer at least 1/)
+      end
+    end
+
+    it 'rejects a negative or non-Integer offset' do
+      [-1, 1.5, '0'].each do |bad|
+        expect { trophies.earned_trophies(np_communication_id: np_comm_id, offset: bad) }
+          .to raise_error(ArgumentError, /offset must be an Integer at least 0/)
+      end
+    end
+
+    it 'rejects unknown keywords' do
+      expect { trophies.earned_trophies(np_communication_id: np_comm_id, limt: 10) }
+        .to raise_error(ArgumentError, /unknown keyword/)
     end
   end
 

@@ -2,7 +2,7 @@
 
 module PSN
   module Client
-    # Argument checks shared by the paginated Users and Account calls
+    # Argument checks shared by the paginated Trophies, Users and Account calls
     module Pagination
       private
 

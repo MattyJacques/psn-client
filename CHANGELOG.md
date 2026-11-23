@@ -1,5 +1,8 @@
 ## [Unreleased]
 
+- **Breaking:** `limit` and `offset` on `Trophies#trophy_titles`, `#title_trophies` and `#earned_trophies` must be Integers (`limit` at least 1, `offset` at least 0), or `ArgumentError` is raised. `trophy_titles` also rejects a `limit` above 800, Sony's maximum. Numeric strings such as `limit: '10'` are no longer accepted
+- **Breaking:** `Trophies#title_trophies` and `#earned_trophies` raise `ArgumentError` for an unknown keyword instead of silently ignoring it
+- `Trophies` query parameters are now URL-encoded by `Request`, and requests with no query parameters no longer end in a bare `?`
 - `Auth.authenticate` and `Auth.new` accept `npsso:`, `client_id:` and `basic_token:`. The `PSN_*` environment variables remain the defaults
 - `PSN_BASIC_TOKEN` is now read when authenticating instead of once when the gem loads, so setting it after `require` takes effect
 - **Breaking:** removed the `Auth::BASIC_TOKEN` constant. Use `Auth::DEFAULT_BASIC_TOKEN`, or pass `basic_token:`
