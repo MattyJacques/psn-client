@@ -27,6 +27,8 @@ module PSN
       private
 
       def parse_retry_at: (Time now) -> Time?
+      def next_available_time: (String? value) -> Time?
+      def retry_after_time: (String? value, Time now) -> Time?
     end
 
     class GraphQLError < Error

@@ -57,7 +57,7 @@ module PSN
 
         response = @request.get(format(PROFILE2_PATH, online_id), host: :community,
                                                                   params: { 'fields' => PROFILE2_FIELDS })
-        response['profile']
+        response&.dig('profile')
       end
 
       def profile_by_account_id(account_id:)

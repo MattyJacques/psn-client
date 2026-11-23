@@ -32,11 +32,26 @@ RSpec.describe PSN::Client::Error do
       expect(error_with('retry-after' => '120').retry_at).to eq(now + 120)
     end
 
-    it 'fixes a relative Retry-After deadline when the error is created' do
-      error = error_with('retry-after' => '120')
-      allow(Time).to receive(:now).and_return(now + 60)
+    it 'falls back to Retry-After when X-RateLimit-Next-Available is unparseable' do
+      headers = { 'x-ratelimit-next-available' => '1700000300.5', 'retry-after' => '120' }
+      expect(error_with(headers).retry_at).to eq(now + 120)
+    end
 
-      expect(error.retry_at).to eq(now + 120)
+    it 'returns nil for an unparseable X-RateLimit-Next-Available alone' do
+      expect(error_with('x-ratelimit-next-available' => '').retry_at).to be_nil
+    end
+
+    context 'when time passes after the error is created' do
+      before do
+        allow(Time).to receive(:now).and_return(now, now + 60)
+      end
+
+      it 'keeps the relative Retry-After deadline fixed' do
+        error = error_with('retry-after' => '120')
+
+        expect(Time.now).to eq(now + 60)
+        expect(error.retry_at).to eq(now + 120)
+      end
     end
 
     it 'reads Retry-After as an HTTP date' do

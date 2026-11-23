@@ -63,6 +63,20 @@ RSpec.describe PSN::Client::Users do
     end
   end
 
+  describe 'an empty profile response' do
+    before do
+      allow(request).to receive(:get).and_return(nil)
+    end
+
+    it 'returns nil from #profile' do
+      expect(users.profile(online_id: 'Foo')).to be_nil
+    end
+
+    it 'raises Error from #account_id' do
+      expect { users.account_id('Foo') }.to raise_error(PSN::Client::Error, /no PSN account found/)
+    end
+  end
+
   describe '#profile' do
     before do
       allow(request).to receive(:get)

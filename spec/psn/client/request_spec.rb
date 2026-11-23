@@ -185,6 +185,22 @@ RSpec.describe PSN::Client::Request do
     end
   end
 
+  describe 'unreadable responses' do
+    [Zlib::BufError, Net::HTTPHeaderSyntaxError].each do |error_class|
+      context "when reading the response raises #{error_class}" do
+        before do
+          allow(Net::HTTP).to receive(:start).and_raise(error_class, 'bad response')
+        end
+
+        it 'raises TransportError wrapping it' do
+          expect { request_service.get('/test') }.to raise_error(PSN::Client::TransportError) do |e|
+            expect(e.cause).to be_a(error_class)
+          end
+        end
+      end
+    end
+  end
+
   describe '#post' do
     let(:captured_requests) { [] }
 
@@ -244,6 +260,17 @@ RSpec.describe PSN::Client::Request do
       request_service.graphql('op', {}, 'h', headers: { 'X-Extra' => 'y' })
       expect(captured_requests.last['X-Extra']).to eq('y')
       expect(captured_requests.last['Apollo-Require-Preflight']).to eq('true')
+    end
+
+    context 'when a successful response has an empty body' do
+      let(:response) { http_response(200, '') }
+
+      it 'raises ParseError with the response details' do
+        expect { request_service.graphql('op', {}, 'h') }
+          .to raise_error(PSN::Client::ParseError, 'PSN GraphQL response was empty') do |e|
+          expect(e.status).to eq(200)
+        end
+      end
     end
 
     context 'when the body carries GraphQL errors' do

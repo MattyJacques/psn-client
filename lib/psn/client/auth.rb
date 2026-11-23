@@ -19,10 +19,8 @@ module PSN
       DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
       BASIC_TOKEN = ENV.fetch('PSN_BASIC_TOKEN', DEFAULT_BASIC_TOKEN)
 
-      class << self
-        def authenticate
-          new.authenticate
-        end
+      def self.authenticate
+        new.authenticate
       end
 
       def authenticate
@@ -32,7 +30,8 @@ module PSN
         PSN.logger.debug { "Fetched authorisation code: #{code}" }
 
         access_token = fetch_token(code)
-        PSN.logger.debug { "Fetched access token which expires in: #{access_token.expires_in / 60} minutes" }
+        minutes = access_token.expires_in&.div(60) || 'unknown'
+        PSN.logger.debug { "Fetched access token which expires in: #{minutes} minutes" }
         PSN.logger.info('Acquired new PSN access token')
 
         access_token.token
@@ -76,15 +75,15 @@ module PSN
                                    redirect_uri: 'com.scee.psxandroid.scecompcall://redirect',
                                    token_format: 'jwt',
                                    headers: { Authorization: "Basic #{BASIC_TOKEN}" })
-      rescue OAuth2::Error, JSON::ParserError, Faraday::ConnectionFailed, Faraday::TimeoutError, Faraday::SSLError => e
+      rescue OAuth2::Error, JSON::ParserError, Faraday::Error => e
         log_and_raise token_error(e)
       end
 
       def token_error(error)
         case error
         when OAuth2::Error
-          AuthenticationError.new("PSN token exchange failed: #{error.description || error.message}",
-                                  error_code: error.code, **Error.details_from(error.response))
+          response_error("PSN token exchange failed: #{error.description || error.message}",
+                         error.response, error_code: error.code)
         # oauth2 parses the token body before returning the response, so none is available to attach.
         when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
         else TransportError.new("PSN token request failed: #{error.class}: #{error.message}")
@@ -93,16 +92,27 @@ module PSN
 
       def parse_code(response)
         params = URI.decode_www_form(URI(response['location']).query.to_s).to_h
-        code = params['code']
-
-        return code if code
+        return params['code'] if params['code']
 
         fail_with(get_error_message(params['error'], params['error_description']), response,
                   error_code: params['error'])
+      rescue URI::InvalidURIError, ArgumentError => e
+        fail_with("PSN authorisation redirect was malformed: #{e.message}", response, error_code: nil)
       end
 
       def fail_with(message, response, error_code:)
-        log_and_raise AuthenticationError.new(message, error_code: error_code, **Error.details_from(response))
+        log_and_raise response_error(message, response, error_code: error_code)
+      end
+
+      # A rate limit or a Sony outage says nothing about the credentials, so only the
+      # remaining statuses are reported as AuthenticationError.
+      def response_error(message, response, error_code:)
+        details = Error.details_from(response)
+        case details[:status]
+        when 429 then RateLimitError.new(message, **details)
+        when 500.. then Error.new(message, **details)
+        else AuthenticationError.new(message, error_code: error_code, **details)
+        end
       end
 
       def log_and_raise(error)

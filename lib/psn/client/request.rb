@@ -51,7 +51,7 @@ module PSN
         uri = build_uri(host, GRAPHQL_PATH, params)
         request = authorize(Net::HTTP::Get.new(uri), { 'Apollo-Require-Preflight' => 'true' }.merge(headers))
         result, response = perform(uri, request)
-        raise_graphql_errors(result, response)
+        check_graphql_result(result, response)
         result
       end
 
@@ -71,6 +71,12 @@ module PSN
         messages = errors.filter_map { |error| error.is_a?(Hash) ? error['message'] : error.to_s }
         raise GraphQLError.new("PSN GraphQL error: #{messages.join('; ')}",
                                errors: errors, data: result['data'], **Error.details_from(response))
+      end
+
+      def check_graphql_result(result, response)
+        raise ParseError.new('PSN GraphQL response was empty', **Error.details_from(response)) if result.nil?
+
+        raise_graphql_errors(result, response)
       end
 
       def build_uri(host, path, params)
@@ -120,8 +126,6 @@ module PSN
       end
 
       def privacy_error?(response)
-        return false unless response.code == '403'
-
         body = JSON.parse(response.body)
         error = body['error'] if body.is_a?(Hash)
         error = error['message'] if error.is_a?(Hash)
