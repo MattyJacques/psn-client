@@ -322,4 +322,35 @@ RSpec.describe PSN::Client::Request do
       end
     end
   end
+
+  describe 'timeouts' do
+    subject(:request_service) { described_class.new(access_token, open_timeout: 2, read_timeout: 5) }
+
+    before do
+      allow(Net::HTTP).to receive(:start).and_yield(http)
+      allow(http).to receive(:request).and_return(response)
+    end
+
+    it 'passes them to Net::HTTP' do
+      request_service.get('/test')
+      expect(Net::HTTP).to have_received(:start)
+        .with('m.np.playstation.com', 443, use_ssl: true, open_timeout: 2, read_timeout: 5)
+    end
+  end
+
+  describe '.for' do
+    let(:injected) { instance_double(described_class) }
+
+    it 'returns an injected request' do
+      expect(described_class.for(nil, injected)).to be(injected)
+    end
+
+    it 'builds a request from an access token' do
+      expect(described_class.for(access_token)).to be_a(described_class)
+    end
+
+    it 'raises ArgumentError when given neither' do
+      expect { described_class.for(nil) }.to raise_error(ArgumentError, /access token or a request/)
+    end
+  end
 end

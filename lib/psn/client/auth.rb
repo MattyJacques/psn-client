@@ -17,10 +17,19 @@ module PSN
       DEFAULT_CLIENT_ID = '09515159-7237-4370-9b40-3806e67c0891'
       # Base64 of "<DEFAULT_CLIENT_ID>:<client secret>".
       DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
+      # Kept for compatibility and no longer used: the basic token is now resolved per call.
       BASIC_TOKEN = ENV.fetch('PSN_BASIC_TOKEN', DEFAULT_BASIC_TOKEN)
 
-      def self.authenticate
-        new.authenticate
+      def self.authenticate(**options)
+        new(**options).authenticate
+      end
+
+      # Each credential falls back to its environment variable (PSN_NPSSO, PSN_CLIENT_ID,
+      # PSN_BASIC_TOKEN), read when authenticating, and then to the default.
+      def initialize(npsso: nil, client_id: nil, basic_token: nil)
+        @npsso = npsso
+        @client_id = client_id
+        @basic_token = basic_token
       end
 
       def authenticate
@@ -74,7 +83,7 @@ module PSN
         client.auth_code.get_token(code,
                                    redirect_uri: 'com.scee.psxandroid.scecompcall://redirect',
                                    token_format: 'jwt',
-                                   headers: { Authorization: "Basic #{BASIC_TOKEN}" })
+                                   headers: { Authorization: "Basic #{basic_token}" })
       rescue OAuth2::Error, JSON::ParserError, Faraday::Error => e
         log_and_raise token_error(e)
       end
@@ -138,7 +147,7 @@ module PSN
       end
 
       def client
-        @client ||= OAuth2::Client.new(ENV.fetch('PSN_CLIENT_ID', DEFAULT_CLIENT_ID), '', site: AUTH_URL)
+        @client ||= OAuth2::Client.new(client_id, '', site: AUTH_URL)
       end
 
       def auth_url
@@ -148,7 +157,15 @@ module PSN
       end
 
       def npsso_cookie
-        "npsso=#{ENV.fetch('PSN_NPSSO', nil)}"
+        "npsso=#{@npsso || ENV.fetch('PSN_NPSSO', nil)}"
+      end
+
+      def client_id
+        @client_id || ENV.fetch('PSN_CLIENT_ID', DEFAULT_CLIENT_ID)
+      end
+
+      def basic_token
+        @basic_token || ENV.fetch('PSN_BASIC_TOKEN', DEFAULT_BASIC_TOKEN)
       end
     end
   end

@@ -21,6 +21,11 @@ RSpec.describe PSN::Client::Auth do
     it 'delegates to a new instance' do
       expect(described_class.authenticate).to eq('token')
     end
+
+    it 'passes credentials to the new instance' do
+      described_class.authenticate(npsso: 'n', client_id: 'c', basic_token: 'b')
+      expect(described_class).to have_received(:new).with(npsso: 'n', client_id: 'c', basic_token: 'b')
+    end
   end
 
   describe 'default credentials' do
@@ -58,6 +63,8 @@ RSpec.describe PSN::Client::Auth do
       allow(ENV).to receive(:fetch).with('PSN_NPSSO', nil).and_return('test_npsso')
       allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', described_class::DEFAULT_CLIENT_ID)
                                    .and_return('test_client_id')
+      allow(ENV).to receive(:fetch).with('PSN_BASIC_TOKEN', described_class::DEFAULT_BASIC_TOKEN)
+                                   .and_return('env_basic_token')
 
       allow(OAuth2::Client).to receive(:new).and_return(oauth_client)
       allow(oauth_client).to receive(:auth_code).and_return(auth_code_strategy)
@@ -96,6 +103,40 @@ RSpec.describe PSN::Client::Auth do
             token_format: 'jwt'
           )
         )
+      end
+
+      it 'sends the basic token from the environment' do
+        auth.authenticate
+
+        expect(auth_code_strategy).to have_received(:get_token)
+          .with('AUTH_CODE_123', hash_including(headers: { Authorization: 'Basic env_basic_token' }))
+      end
+
+      it 'creates the OAuth client with the client ID from the environment' do
+        auth.authenticate
+        expect(OAuth2::Client).to have_received(:new).with('test_client_id', '', anything)
+      end
+
+      context 'with explicit credentials' do
+        let(:auth) { described_class.new(npsso: 'my_npsso', client_id: 'my_client', basic_token: 'my_basic') }
+
+        it 'uses the client ID and basic token given' do
+          auth.authenticate
+
+          expect(OAuth2::Client).to have_received(:new).with('my_client', '', anything)
+          expect(auth_code_strategy).to have_received(:get_token)
+            .with('AUTH_CODE_123', hash_including(headers: { Authorization: 'Basic my_basic' }))
+        end
+
+        it 'uses the NPSSO given' do
+          auth.authenticate
+          expect(http).to have_received(:request) { |request| expect(request['Cookie']).to eq('npsso=my_npsso') }
+        end
+
+        it 'does not read the environment' do
+          auth.authenticate
+          expect(ENV).not_to have_received(:fetch)
+        end
       end
 
       it 'sets the NPSSO cookie on the request' do

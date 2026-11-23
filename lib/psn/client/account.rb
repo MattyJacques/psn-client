@@ -30,8 +30,10 @@ module PSN
       # Without this header the call returns HTTP 400 "Cannot query field" (verified live 2026-07-11).
       SUMMARY_HEADERS = { 'apollographql-client-name' => 'oracle' }.freeze
 
-      def initialize(access_token)
-        @request = Request.new(access_token)
+      # Pass an access token, or `request:` to inject a Request (or any object
+      # responding to the same methods) instead of building one.
+      def initialize(access_token = nil, request: nil)
+        @request = Request.for(access_token, request)
       end
 
       def devices

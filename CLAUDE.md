@@ -28,10 +28,10 @@ bundle exec ruby bin/verify_users.rb        # live smoke test of Users and Accou
 
 ## Architecture
 
-Everything lives under `PSN::Client` in `lib/psn/client/`; `require 'psn/client'` loads it all. The gem is two independent steps that the caller wires together with a plain token string — there is no client object holding state, and no token caching or refresh.
+Everything lives under `PSN::Client` in `lib/psn/client/`; `require 'psn/client'` loads it all. The gem is two independent steps that the caller wires together with a plain token string, or with the optional `Session` facade (`session.rb`), which builds one `Request` and hands it to memoized `trophies`/`users`/`account`. There is no token caching or refresh.
 
 1. **`Auth`** (`auth.rb`) — `Auth.authenticate` returns the access token as a *string*. It sends a GET to Sony's OAuth authorize URL carrying the `npsso` cookie, reads the auth code out of the redirect `Location` header (the redirect targets a mobile app scheme and is never followed), then exchanges the code for a JWT via the `oauth2` gem. Errors are derived from, in order: an `error_description` in the redirect query or JSON body, the `login_required` error code (expired NPSSO), or a generic fallback. They are logged and raised as `AuthenticationError` (with `error_code` and the response's status/headers/body); `OAuth2::Error` from the token exchange becomes `AuthenticationError` too, a malformed JSON token response becomes `ParseError`, and network failures (including any `Faraday::Error`) become `TransportError`. The exception is by status (`Auth#response_error`): a 429 from either step raises `RateLimitError` and a 5xx plain `Error`, so outages are not mistaken for bad credentials. A redirect `Location` that cannot be parsed raises `AuthenticationError`.
-2. **API classes** — each is instantiated with the token, builds one `Request`, and returns the parsed JSON untouched (no model objects, no automatic pagination):
+2. **API classes** — each is instantiated with the token (building a `Request` via `Request.for`) or with an injected `request:`, and returns the parsed JSON untouched (no model objects, no automatic pagination):
    - **`Trophies`** (`trophies.rb`) — builds paths and query strings by hand and calls `Request#get` on the mobile host.
    - **`Users`** (`users.rb`) — `search` (persisted GraphQL), `account_id`/`profile` by online ID (profile2 on the `community` host), `profile_by_account_id`, and `played_games`. Online IDs, account IDs and user IDs are validated against regexes before they reach a path.
    - **`Account`** (`account.rb`) — the signed-in account only: `devices` (`dms` host), and `library`, `purchased_games` and `summary` (persisted GraphQL; `summary` uses the `web` host).
@@ -42,7 +42,7 @@ Everything lives under `PSN::Client` in `lib/psn/client/`; `require 'psn/client'
 
 Things that are easy to get wrong:
 
-- **Configuration is env-only**: `PSN_NPSSO` (required), `PSN_CLIENT_ID` and `PSN_BASIC_TOKEN` (optional, defaulting to `Auth::DEFAULT_CLIENT_ID` / `DEFAULT_BASIC_TOKEN`, the PlayStation app's public OAuth client). `Auth::BASIC_TOKEN` is a constant read from ENV when the file is *loaded*; the other two are read lazily per call. Setting or stubbing `PSN_BASIC_TOKEN` after load has no effect (the `ENV.fetch` stub for it in `auth_spec.rb` is inert — use `stub_const` to control it).
+- **Configuration defaults to env**: `Auth.new`/`Auth.authenticate` take `npsso:`, `client_id:` and `basic_token:`; each falls back to `PSN_NPSSO` (required), `PSN_CLIENT_ID` or `PSN_BASIC_TOKEN` (optional, defaulting to `Auth::DEFAULT_CLIENT_ID` / `DEFAULT_BASIC_TOKEN`, the PlayStation app's public OAuth client), all read lazily per call. `Auth::BASIC_TOKEN` is still a constant read at load, kept for compatibility only — nothing uses it. `Request.new` takes optional `open_timeout:`/`read_timeout:`; `Auth`'s own `Net::HTTP` call has no timeout options.
 - **`np_service_name:` vs `platform:`** — title-scoped methods accept one or the other; passing both raises `ArgumentError`. `platform:` maps PS3/PS4/PSVita → `trophy` and PS5/PC → `trophy2` (`resolve_service_name`). Passing neither, or an unrecognised platform, silently omits `npServiceName`, which the API rejects for PS3/PS4/PSVita titles.
 - **Trophies query strings are not URL-encoded** (unlike `Request`'s `params:`) — `build_query_string` drops `nil` values and interpolates the rest raw. Optional `limit:`/`offset:` on `title_trophies`/`earned_trophies` travel through `**options`, so any other keyword passed there is silently ignored.
 - **`PSN.logger`** (`lib/psn/logger.rb`) defaults to `Rails.logger` when Rails is defined, otherwise stdout, and is memoized; override with `PSN.logger=`. Debug-level logging includes the raw auth code.
@@ -53,7 +53,7 @@ Things that are easy to get wrong:
 
 No HTTP-mocking library is used and specs never touch the network. Collaborators are stubbed with `instance_double`:
 
-- `Trophies` specs stub `Request.new`/`#get` and assert on the **exact path string**, so parameter order in `build_query_string` calls is part of the tested contract. `Users` and `Account` specs stub `Request.new` the same way and assert on `#get`/`#graphql` arguments.
+- `Trophies` specs stub `Request.new`/`#get` and assert on the **exact path string**, so parameter order in `build_query_string` calls is part of the tested contract. `Users` and `Account` specs stub `Request.new` the same way and assert on `#get`/`#graphql` arguments. New specs can skip the constructor stub and pass the double as `request:`.
 - Stubs (`allow`) go in `before` blocks, never inside `it`; check calls afterwards with `have_received`. No cop enforces this.
 - `Auth` specs stub `Net::HTTP.new`, `OAuth2::Client`, `ENV.fetch`, and `PSN.logger`; `Request` specs stub `Net::HTTP.start`. Both return real `Net::HTTPResponse` objects built with `http_response(code, body, headers)` (`spec/support/http_responses.rb`, included in every example), because errors read `code`, `each_header` and `body`.
 

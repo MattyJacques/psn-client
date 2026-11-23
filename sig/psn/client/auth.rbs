@@ -6,7 +6,12 @@ module PSN
       DEFAULT_BASIC_TOKEN: String
       BASIC_TOKEN: String
 
-      def self.authenticate: () -> String
+      @npsso: String?
+      @client_id: String?
+      @basic_token: String?
+
+      def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> String
+      def initialize: (?npsso: String?, ?client_id: String?, ?basic_token: String?) -> void
       def authenticate: () -> String
 
       private
@@ -26,6 +31,8 @@ module PSN
       def client: () -> OAuth2::Client
       def auth_url: () -> String
       def npsso_cookie: () -> String
+      def client_id: () -> String
+      def basic_token: () -> String
     end
   end
 end
