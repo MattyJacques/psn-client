@@ -73,90 +73,98 @@ RSpec.describe PSN::Client::Request do
     end
 
     context 'when forbidden by access control' do
-      let(:response) do
-        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden',
-                                            body: '{"error":{"message":"Not permitted by access control"}}')
-      end
+      let(:response) { http_response(403, '{"error":{"message":"Not permitted by access control"}}') }
 
-      it 'raises PrivacyError' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::PrivacyError, /Request failed: 403/)
+      it 'raises PrivacyError with the response details' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::PrivacyError, /Request failed: 403/) do |e|
+          expect(e).to have_attributes(status: 403, body: '{"error":{"message":"Not permitted by access control"}}')
+        end
       end
     end
 
     context 'when forbidden with a string error mentioning privacy' do
-      let(:response) do
-        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '{"error":"Privacy settings"}')
-      end
+      let(:response) { http_response(403, '{"error":"Privacy settings"}') }
 
       it 'raises PrivacyError' do
         expect { request_service.get('/test') }.to raise_error(PSN::Client::PrivacyError)
       end
     end
 
-    context 'when forbidden with a non-JSON body' do
-      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '<html>') }
+    [['a non-JSON body', '<html>'], ['an unrelated JSON error', '{"error":{"message":"Insufficient scope"}}'],
+     ['a JSON null body', 'null'], ['a non-Hash, non-String error', '{"error":42}']].each do |description, body|
+      context "when forbidden with #{description}" do
+        let(:response) { http_response(403, body) }
 
-      it 'raises a plain Error' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
-          expect(e).not_to be_a(PSN::Client::PrivacyError)
-        end
-      end
-    end
-
-    context 'when forbidden with an unrelated JSON error' do
-      let(:response) do
-        instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden',
-                                            body: '{"error":{"message":"Insufficient scope"}}')
-      end
-
-      it 'raises a plain Error' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
-          expect(e).not_to be_a(PSN::Client::PrivacyError)
-        end
-      end
-    end
-
-    context 'when forbidden with a JSON null body' do
-      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: 'null') }
-
-      it 'raises a plain Error' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 403/) do |e|
-          expect(e).not_to be_a(PSN::Client::PrivacyError)
-        end
-      end
-    end
-
-    context 'when forbidden with a non-Hash, non-String error' do
-      let(:response) { instance_double(Net::HTTPForbidden, code: '403', message: 'Forbidden', body: '{"error":42}') }
-
-      it 'raises a plain Error' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error) do |e|
-          expect(e).not_to be_a(PSN::Client::PrivacyError)
+        it 'raises a plain Error' do
+          expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 403/) do |e|
+            expect(e.class).to eq(PSN::Client::Error)
+          end
         end
       end
     end
 
     context 'when request fails' do
-      let(:response) { instance_double(Net::HTTPNotFound, body: 'Not Found', code: '404', message: 'Not Found') }
+      let(:response) { http_response(404, 'Not Found', 'X-Trace' => 'abc') }
 
-      it 'raises an error with status code and message' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 404/)
+      it 'raises a plain Error carrying status, headers and body' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 404/) do |e|
+          expect(e.class).to eq(PSN::Client::Error)
+          expect(e).to have_attributes(status: 404, body: 'Not Found', headers: include('x-trace' => 'abc'))
+        end
       end
     end
 
     context 'when unauthorized' do
-      let(:response) { instance_double(Net::HTTPUnauthorized, body: 'Unauthorized', code: '401', message: 'Unauthorized') }
+      let(:response) { http_response(401, 'Unauthorized') }
 
-      it 'raises an error' do
-        expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 401/)
+      it 'raises AuthenticationError' do
+        expect { request_service.get('/test') }
+          .to raise_error(PSN::Client::AuthenticationError, /Request failed: 401/) do |e|
+          expect(e.status).to eq(401)
+        end
+      end
+    end
+
+    context 'when rate limited' do
+      let(:response) { http_response(429, '', 'X-RateLimit-Next-Available' => '1800000000') }
+
+      it 'raises RateLimitError with the time requests resume' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::RateLimitError) do |e|
+          expect(e).to have_attributes(status: 429, retry_at: Time.at(1_800_000_000))
+        end
       end
     end
 
     context 'when server error occurs' do
-      let(:response) { instance_double(Net::HTTPServerError, body: 'Internal Server Error', code: '500', message: 'Internal Server Error') }
+      let(:response) { http_response(500, 'Internal Server Error') }
 
       it 'raises an error' do
         expect { request_service.get('/test') }.to raise_error(PSN::Client::Error, /Request failed: 500/)
+      end
+    end
+
+    context 'when a successful response is not JSON' do
+      let(:response) { http_response(200, '<html>') }
+
+      it 'raises ParseError wrapping the JSON error' do
+        expect { request_service.get('/test') }.to raise_error(PSN::Client::ParseError) do |e|
+          expect(e).to have_attributes(status: 200, body: '<html>')
+          expect(e.cause).to be_a(JSON::ParserError)
+        end
+      end
+    end
+  end
+
+  describe 'transport failures' do
+    before do
+      allow(Net::HTTP).to receive(:start).and_raise(Net::OpenTimeout, 'execution expired')
+    end
+
+    it 'raises TransportError wrapping the network error' do
+      expect { request_service.get('/test') }
+        .to raise_error(PSN::Client::TransportError, /m\.np\.playstation\.com.*Net::OpenTimeout/) do |e|
+        expect(e.cause).to be_a(Net::OpenTimeout)
+        expect(e.status).to be_nil
       end
     end
   end
@@ -229,9 +237,20 @@ RSpec.describe PSN::Client::Request do
         res
       end
 
-      it 'raises Error' do
+      it 'raises GraphQLError' do
         expect { request_service.graphql('op', {}, 'h') }
-          .to raise_error(PSN::Client::Error, 'PSN GraphQL error: bad; worse')
+          .to raise_error(PSN::Client::GraphQLError, 'PSN GraphQL error: bad; worse')
+      end
+    end
+
+    context 'when GraphQL errors come with partial data' do
+      let(:response) { http_response(200, '{"data":{"a":1},"errors":[{"message":"bad","path":["b"]}]}') }
+
+      it 'keeps the errors, partial data and status' do
+        expect { request_service.graphql('op', {}, 'h') }.to raise_error(PSN::Client::GraphQLError) do |e|
+          expect(e).to have_attributes(errors: [{ 'message' => 'bad', 'path' => ['b'] }],
+                                       data: { 'a' => 1 }, status: 200)
+        end
       end
     end
 

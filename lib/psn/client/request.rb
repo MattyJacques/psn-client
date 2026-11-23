@@ -2,6 +2,7 @@
 
 require 'net/http'
 require 'json'
+require_relative 'errors'
 require_relative 'version'
 
 module PSN
@@ -29,7 +30,7 @@ module PSN
       def get(path, host: :mobile, params: {}, headers: {})
         uri = build_uri(host, path, params)
 
-        perform(uri, authorize(Net::HTTP::Get.new(uri), headers))
+        perform(uri, authorize(Net::HTTP::Get.new(uri), headers)).first
       end
 
       def post(path, body, host: :mobile, headers: {})
@@ -38,7 +39,7 @@ module PSN
         request['Content-Type'] = 'application/json'
         request.body = JSON.generate(body)
 
-        perform(uri, request)
+        perform(uri, request).first
       end
 
       def graphql(operation_name, variables, sha256_hash, host: :mobile, headers: {})
@@ -47,9 +48,10 @@ module PSN
           'variables' => JSON.generate(variables),
           'extensions' => JSON.generate('persistedQuery' => { 'version' => 1, 'sha256Hash' => sha256_hash })
         }
-        result = get(GRAPHQL_PATH, host: host, params: params,
-                                   headers: { 'Apollo-Require-Preflight' => 'true' }.merge(headers))
-        raise_graphql_errors(result)
+        uri = build_uri(host, GRAPHQL_PATH, params)
+        request = authorize(Net::HTTP::Get.new(uri), { 'Apollo-Require-Preflight' => 'true' }.merge(headers))
+        result, response = perform(uri, request)
+        raise_graphql_errors(result, response)
         result
       end
 
@@ -62,12 +64,13 @@ module PSN
         request
       end
 
-      def raise_graphql_errors(result)
+      def raise_graphql_errors(result, response)
         errors = result['errors'] if result.is_a?(Hash)
         return unless errors.is_a?(Array) && !errors.empty?
 
         messages = errors.filter_map { |error| error.is_a?(Hash) ? error['message'] : error.to_s }
-        raise Error, "PSN GraphQL error: #{messages.join('; ')}"
+        raise GraphQLError.new("PSN GraphQL error: #{messages.join('; ')}",
+                               errors: errors, data: result['data'], **Error.details_from(response))
       end
 
       def build_uri(host, path, params)
@@ -79,24 +82,39 @@ module PSN
         URI(url)
       end
 
+      # Returns the parsed body and the raw response.
       def perform(uri, http_request)
         response = Net::HTTP.start(uri.hostname, uri.port, use_ssl: true) do |http|
           http.request(http_request)
         end
 
-        parse_response(response)
+        [parse_response(response), response]
+      rescue *TransportError::NETWORK_ERRORS => e
+        raise TransportError, "Request to #{uri.hostname} failed: #{e.class}: #{e.message}"
       end
 
       def parse_response(response)
-        case response
-        when Net::HTTPSuccess
-          JSON.parse(response.body)
-        else
-          message = "Request failed: #{response.code} #{response.message} - #{response.body}"
-          raise PrivacyError, message if privacy_error?(response)
+        raise error_class_for(response).new(failure_message(response), **Error.details_from(response)) \
+          unless response.is_a?(Net::HTTPSuccess)
 
-          raise Error, message
+        begin
+          JSON.parse(response.body)
+        rescue JSON::ParserError => e
+          raise ParseError.new("Invalid JSON in response: #{e.message}", **Error.details_from(response))
         end
+      end
+
+      def error_class_for(response)
+        case response.code
+        when '401' then AuthenticationError
+        when '429' then RateLimitError
+        when '403' then privacy_error?(response) ? PrivacyError : Error
+        else Error
+        end
+      end
+
+      def failure_message(response)
+        "Request failed: #{response.code} #{response.message} - #{response.body}"
       end
 
       def privacy_error?(response)
