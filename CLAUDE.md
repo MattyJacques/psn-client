@@ -53,7 +53,7 @@ Things that are easy to get wrong:
 
 No HTTP-mocking library is used and specs never touch the network. Collaborators are stubbed with `instance_double`:
 
-- `Trophies` specs stub `Request.new`/`#get` and assert on the **exact path string**, so parameter order in `build_query_string` calls is part of the tested contract. `Users` and `Account` specs stub `Request.new` the same way and assert on `#get`/`#graphql` arguments. New specs can skip the constructor stub and pass the double as `request:`.
+- `Trophies` specs pass a `Request` double as `request:`, stub `#get` and assert on the **exact path string**, so parameter order in `build_query_string` calls is part of the tested contract. `Users` and `Account` specs inject the double the same way and assert on `#get`/`#graphql` arguments. Only each `#initialize` group stubs `Request.new`, to cover the access-token path.
 - Stubs (`allow`) go in `before` blocks, never inside `it`; check calls afterwards with `have_received`. No cop enforces this.
 - `Auth` specs stub `Net::HTTP.new`, `OAuth2::Client`, `ENV.fetch`, and `PSN.logger`; `Request` specs stub `Net::HTTP.start`. Both return real `Net::HTTPResponse` objects built with `http_response(code, body, headers)` (`spec/support/http_responses.rb`, included in every example), because errors read `code`, `each_header` and `body`.
 

@@ -3,14 +3,9 @@
 require 'spec_helper'
 
 RSpec.describe PSN::Client::Users do
-  subject(:users) { described_class.new(access_token) }
+  subject(:users) { described_class.new(request: request) }
 
-  let(:access_token) { 'access_token' }
   let(:request) { instance_double(PSN::Client::Request) }
-
-  before do
-    allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
-  end
 
   describe '#search' do
     let(:variables) do
@@ -165,18 +160,18 @@ RSpec.describe PSN::Client::Users do
     end
   end
 
-  context 'with an injected request' do
-    subject(:injected) { described_class.new(request: request) }
+  describe '#initialize' do
+    subject(:from_token) { described_class.new('access_token') }
 
     before do
-      allow(PSN::Client::Request).to receive(:new)
+      allow(PSN::Client::Request).to receive(:new).with('access_token').and_return(request)
       allow(request).to receive(:get).and_return('ok')
     end
 
-    it 'uses it without building a Request' do
-      expect(injected.profile_by_account_id(account_id: '1')).to eq('ok')
-      expect(request).to have_received(:get).with('/userProfile/v1/internal/users/1/profiles')
-      expect(PSN::Client::Request).not_to have_received(:new)
+    it 'builds a Request from an access token' do
+      expect(from_token.profile_by_account_id(account_id: '1')).to eq('ok')
+      expect(request).to have_received(:get)
+        .with('/userProfile/v1/internal/users/1/profiles')
     end
 
     it 'requires an access token or a request' do

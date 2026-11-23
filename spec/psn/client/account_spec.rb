@@ -3,15 +3,10 @@
 require 'spec_helper'
 
 RSpec.describe PSN::Client::Account do
-  subject(:account) { described_class.new(access_token) }
+  subject(:account) { described_class.new(request: request) }
 
-  let(:access_token) { 'access_token' }
   let(:request) { instance_double(PSN::Client::Request) }
   let(:body) { { 'data' => {} } }
-
-  before do
-    allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
-  end
 
   describe '#devices' do
     before do
@@ -88,19 +83,18 @@ RSpec.describe PSN::Client::Account do
     end
   end
 
-  context 'with an injected request' do
-    subject(:injected) { described_class.new(request: request) }
+  describe '#initialize' do
+    subject(:from_token) { described_class.new('access_token') }
 
     before do
-      allow(PSN::Client::Request).to receive(:new)
+      allow(PSN::Client::Request).to receive(:new).with('access_token').and_return(request)
       allow(request).to receive(:get).and_return('ok')
     end
 
-    it 'uses it without building a Request' do
-      expect(injected.devices).to eq('ok')
+    it 'builds a Request from an access token' do
+      expect(from_token.devices).to eq('ok')
       expect(request).to have_received(:get)
         .with(described_class::DEVICES_PATH, host: :dms, params: described_class::DEVICES_PARAMS)
-      expect(PSN::Client::Request).not_to have_received(:new)
     end
 
     it 'requires an access token or a request' do

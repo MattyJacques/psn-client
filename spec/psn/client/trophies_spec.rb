@@ -3,16 +3,14 @@
 require 'spec_helper'
 
 RSpec.describe PSN::Client::Trophies do
-  subject(:trophies) { described_class.new(access_token) }
+  subject(:trophies) { described_class.new(request: request) }
 
-  let(:access_token) { 'access_token' }
   let(:request) { instance_double(PSN::Client::Request) }
 
   describe '#trophy_titles' do
     let(:response) { { 'trophyTitles' => [] } }
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).with('/trophy/v1/users/me/trophyTitles?limit=800&offset=0').and_return(response)
     end
 
@@ -43,7 +41,6 @@ RSpec.describe PSN::Client::Trophies do
     end
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).and_return(response)
     end
 
@@ -66,7 +63,6 @@ RSpec.describe PSN::Client::Trophies do
     let(:np_comm_id) { 'NPWR12345_00' }
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).and_return(response)
     end
 
@@ -113,7 +109,6 @@ RSpec.describe PSN::Client::Trophies do
     let(:np_comm_id) { 'NPWR12345_00' }
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).and_return(response)
     end
 
@@ -168,7 +163,6 @@ RSpec.describe PSN::Client::Trophies do
     let(:np_comm_id) { 'NPWR12345_00' }
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).and_return(response)
     end
 
@@ -247,7 +241,6 @@ RSpec.describe PSN::Client::Trophies do
     let(:np_comm_id) { 'NPWR12345_00' }
 
     before do
-      allow(PSN::Client::Request).to receive(:new).with(access_token).and_return(request)
       allow(request).to receive(:get).and_return(response)
     end
 
@@ -329,18 +322,18 @@ RSpec.describe PSN::Client::Trophies do
     end
   end
 
-  context 'with an injected request' do
-    subject(:injected) { described_class.new(request: request) }
+  describe '#initialize' do
+    subject(:from_token) { described_class.new('access_token') }
 
     before do
-      allow(PSN::Client::Request).to receive(:new)
+      allow(PSN::Client::Request).to receive(:new).with('access_token').and_return(request)
       allow(request).to receive(:get).and_return('ok')
     end
 
-    it 'uses it without building a Request' do
-      expect(injected.trophy_summary).to eq('ok')
-      expect(request).to have_received(:get).with('/trophy/v1/users/me/trophySummary')
-      expect(PSN::Client::Request).not_to have_received(:new)
+    it 'builds a Request from an access token' do
+      expect(from_token.trophy_summary).to eq('ok')
+      expect(request).to have_received(:get)
+        .with('/trophy/v1/users/me/trophySummary')
     end
 
     it 'requires an access token or a request' do
