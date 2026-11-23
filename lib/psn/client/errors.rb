@@ -25,18 +25,6 @@ module PSN
         end
       end
 
-      # The error for a failed authorisation or token response. A rate limit or a Sony
-      # outage says nothing about the credentials, so only the remaining statuses are
-      # reported as AuthenticationError.
-      def self.from_auth_response(message, response, error_code: nil)
-        details = details_from(response)
-        case details[:status]
-        when 429 then RateLimitError.new(message, **details)
-        when 500.. then Error.new(message, **details)
-        else AuthenticationError.new(message, error_code: error_code, **details)
-        end
-      end
-
       def initialize(message = nil, status: nil, headers: {}, body: nil)
         super(message)
         @status = status

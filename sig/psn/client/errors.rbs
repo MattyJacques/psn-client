@@ -6,7 +6,6 @@ module PSN
       attr_reader body: String?
 
       def self.details_from: (untyped response) -> Hash[Symbol, untyped]
-      def self.from_auth_response: (String message, untyped response, ?error_code: String?) -> Error
 
       def initialize: (?String? message, ?status: Integer?, ?headers: Hash[String, String], ?body: String?) -> void
     end

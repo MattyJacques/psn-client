@@ -19,6 +19,7 @@ module PSN
       def token_error: (StandardError) -> Error
       def parse_code: (Net::HTTPResponse) -> String
       def fail_with: (String, Net::HTTPResponse, error_code: String?) -> bot
+      def response_error: (String, untyped, error_code: String?) -> Error
       def log_and_raise: (Error) -> bot
       def parse_json: (String?) -> Hash[String, untyped]
       def get_error_message: (String?, ?String) -> String

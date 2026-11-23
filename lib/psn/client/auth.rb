@@ -82,8 +82,8 @@ module PSN
       def token_error(error)
         case error
         when OAuth2::Error
-          Error.from_auth_response("PSN token exchange failed: #{error.description || error.message}",
-                                   error.response, error_code: error.code)
+          response_error("PSN token exchange failed: #{error.description || error.message}",
+                         error.response, error_code: error.code)
         # oauth2 parses the token body before returning the response, so none is available to attach.
         when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
         else TransportError.new("PSN token request failed: #{error.class}: #{error.message}")
@@ -101,7 +101,18 @@ module PSN
       end
 
       def fail_with(message, response, error_code:)
-        log_and_raise Error.from_auth_response(message, response, error_code: error_code)
+        log_and_raise response_error(message, response, error_code: error_code)
+      end
+
+      # A rate limit or a Sony outage says nothing about the credentials, so only the
+      # remaining statuses are reported as AuthenticationError.
+      def response_error(message, response, error_code:)
+        details = Error.details_from(response)
+        case details[:status]
+        when 429 then RateLimitError.new(message, **details)
+        when 500.. then Error.new(message, **details)
+        else AuthenticationError.new(message, error_code: error_code, **details)
+        end
       end
 
       def log_and_raise(error)
