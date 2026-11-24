@@ -6,10 +6,11 @@ RSpec.describe PSN::Client::Session do
   subject(:session) { described_class.new(request: request) }
 
   let(:request) { instance_double(PSN::Client::Request) }
+  let(:tokens) { PSN::Client::Tokens.new(access_token: 'token', refresh_token: 'refresh') }
 
   describe '.authenticate' do
     before do
-      allow(PSN::Client::Auth).to receive(:authenticate).with(npsso: 'npsso').and_return('token')
+      allow(PSN::Client::Auth).to receive(:tokens).with(npsso: 'npsso').and_return(tokens)
       allow(PSN::Client::Request).to receive(:new).with('token').and_return(request)
     end
 
@@ -17,22 +18,54 @@ RSpec.describe PSN::Client::Session do
       expect(described_class.authenticate(npsso: 'npsso').request).to be(request)
     end
 
+    it 'keeps the tokens' do
+      expect(described_class.authenticate(npsso: 'npsso').tokens).to be(tokens)
+    end
+
     context 'with timeouts' do
       let(:timeouts) { { open_timeout: 2, read_timeout: 5, write_timeout: 7 } }
 
       before do
-        allow(PSN::Client::Auth).to receive(:authenticate).with(npsso: 'npsso', **timeouts).and_return('token')
+        allow(PSN::Client::Auth).to receive(:tokens).with(npsso: 'npsso', **timeouts).and_return(tokens)
         allow(PSN::Client::Request).to receive(:new).with('token', **timeouts).and_return(request)
       end
 
       it 'applies them to authentication' do
         described_class.authenticate(npsso: 'npsso', **timeouts)
-        expect(PSN::Client::Auth).to have_received(:authenticate).with(npsso: 'npsso', **timeouts)
+        expect(PSN::Client::Auth).to have_received(:tokens).with(npsso: 'npsso', **timeouts)
       end
 
       it 'applies them to the request' do
         described_class.authenticate(npsso: 'npsso', **timeouts)
         expect(PSN::Client::Request).to have_received(:new).with('token', **timeouts)
+      end
+    end
+  end
+
+  describe '.from_refresh_token' do
+    before do
+      allow(PSN::Client::Auth).to receive(:refresh).with('refresh').and_return(tokens)
+      allow(PSN::Client::Request).to receive(:new).with('token').and_return(request)
+    end
+
+    it 'builds a session from the refreshed tokens' do
+      expect(described_class.from_refresh_token('refresh')).to have_attributes(request: request, tokens: tokens)
+    end
+
+    context 'with credentials and timeouts' do
+      before do
+        allow(PSN::Client::Auth).to receive(:refresh).with('refresh', client_id: 'c', read_timeout: 5)
+                                                     .and_return(tokens)
+        allow(PSN::Client::Request).to receive(:new).with('token', read_timeout: 5).and_return(request)
+        described_class.from_refresh_token('refresh', client_id: 'c', read_timeout: 5)
+      end
+
+      it 'passes both to the refresh' do
+        expect(PSN::Client::Auth).to have_received(:refresh).with('refresh', client_id: 'c', read_timeout: 5)
+      end
+
+      it 'applies only the timeouts to the request' do
+        expect(PSN::Client::Request).to have_received(:new).with('token', read_timeout: 5)
       end
     end
   end
@@ -44,6 +77,18 @@ RSpec.describe PSN::Client::Session do
 
     it 'builds a request from an access token' do
       expect(described_class.new('token').request).to be(request)
+    end
+
+    it 'has no tokens when built from an access token string' do
+      expect(described_class.new('token').tokens).to be_nil
+    end
+
+    it 'builds a request from Tokens and keeps them' do
+      expect(described_class.new(tokens)).to have_attributes(request: request, tokens: tokens)
+    end
+
+    it 'has no tokens when built from an injected request' do
+      expect(session.tokens).to be_nil
     end
 
     context 'with timeouts' do

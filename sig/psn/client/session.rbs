@@ -6,9 +6,11 @@ module PSN
       @account: Account?
 
       attr_reader request: Request
+      attr_reader tokens: Tokens?
 
       def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> Session
-      def initialize: (?String? access_token, ?request: Request?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
+      def self.from_refresh_token: (String refresh_token, ?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> Session
+      def initialize: (?(String | Tokens)? access_token, ?request: Request?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
       def trophies: () -> Trophies
       def users: () -> Users
       def account: () -> Account
