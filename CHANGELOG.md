@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-24
+
 - **Breaking:** `Trophies` validates the IDs it puts in request paths and raises `ArgumentError` before any request is made: `user_id` must be `'me'` or a numeric account ID, `np_communication_id` must look like `NPWR12345_00`, and `trophy_group_id` must be `'all'`, `'default'` or three digits such as `'001'`. Sony already answered HTTP 400 for anything else, including online IDs passed as `user_id`
 - **Breaking:** `limit` and `offset` on `Trophies#trophy_titles`, `#title_trophies` and `#earned_trophies` must be Integers (`limit` at least 1, `offset` at least 0), or `ArgumentError` is raised. `trophy_titles` also rejects a `limit` above 800, Sony's maximum. Numeric strings such as `limit: '10'` are no longer accepted
 - **Breaking:** `Trophies#title_trophies` and `#earned_trophies` raise `ArgumentError` for an unknown keyword instead of silently ignoring it
