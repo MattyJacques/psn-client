@@ -65,7 +65,7 @@ RSpec.describe 'Authenticating over HTTP', :integration do
                                     'token_format' => 'jwt', 'scope' => 'psn:mobile.v2.core psn:clientapp'),
                headers: { 'Authorization' => 'Basic basic-1' }
              )).to have_been_made.once
-      expect(a_request(:get, authorize_url)).not_to have_been_made
+      expect(a_request(:get, authorize_url).with(query: hash_including({}))).not_to have_been_made
     end
 
     it 'uses the refreshed token for API calls and keeps the refresh token' do

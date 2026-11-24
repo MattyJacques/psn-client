@@ -463,13 +463,19 @@ RSpec.describe PSN::Client::Auth do
     context 'when the token response is malformed JSON' do
       before do
         allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
-        allow(auth_code_strategy).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+        allow(auth_code_strategy).to receive(:get_token)
+          .and_raise(JSON::ParserError, %(unexpected token at '{"access_token":"ACCESS_TOKEN'))
       end
 
       it 'raises ParseError wrapping the JSON error' do
         expect { auth.authenticate }.to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
           expect(e.cause).to be_a(JSON::ParserError)
         end
+      end
+
+      it 'keeps the response body the JSON error quotes out of the message and the log' do
+        expect { auth.authenticate }.to raise_error(PSN::Client::ParseError, 'PSN token response was not valid JSON')
+        expect(logger).to have_received(:error).with('PSN token response was not valid JSON')
       end
     end
 
@@ -710,7 +716,8 @@ RSpec.describe PSN::Client::Auth do
 
     context 'when the token response is malformed JSON' do
       before do
-        allow(oauth_client).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+        allow(oauth_client).to receive(:get_token)
+          .and_raise(JSON::ParserError, %(unexpected token at '{"access_token":"ACCESS_TOKEN'))
       end
 
       it 'raises ParseError wrapping the JSON error' do
@@ -718,6 +725,12 @@ RSpec.describe PSN::Client::Auth do
           .to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
           expect(e.cause).to be_a(JSON::ParserError)
         end
+      end
+
+      it 'keeps the response body the JSON error quotes out of the message and the log' do
+        expect { auth.refresh('SAVED') }
+          .to raise_error(PSN::Client::ParseError, 'PSN token response was not valid JSON')
+        expect(logger).to have_received(:error).with('PSN token response was not valid JSON')
       end
     end
   end

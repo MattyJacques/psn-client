@@ -145,7 +145,8 @@ module PSN
           response_error("PSN token #{action} failed: #{error.description || error.message}",
                          error.response, error_code: error.code)
         # oauth2 parses the token body before returning the response, so none is available to attach.
-        when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
+        # The JSON error can quote that body, tokens included, so it is left to +cause+.
+        when JSON::ParserError then ParseError.new('PSN token response was not valid JSON')
         else TransportError.new("PSN token request failed: #{error.class}: #{error.message}")
         end
       end

@@ -24,6 +24,7 @@
 - Added `Auth.tokens` and `Auth#tokens`, which authenticate like `Auth.authenticate` but return `Tokens`, so the refresh token Sony issues is no longer discarded. `Auth.authenticate` still returns the access token string
 - Added `Auth.refresh(refresh_token)` and `Auth#refresh`, which trade a refresh token for new `Tokens` without the NPSSO. A refresh token Sony no longer accepts raises `AuthenticationError` with an `error_code` of `"invalid_grant"`, and a `nil` or blank one raises `ArgumentError`
 - Added `Session#tokens` and `Session.from_refresh_token(refresh_token)`, and `Session.new` accepts `Tokens` in place of an access token string. Nothing is refreshed automatically
+- The `ParseError` for a malformed token response no longer repeats the JSON parser's message, which could quote the response body and any tokens in it. The parser's error is still available from `cause`
 
 ## [0.2.0] - 2026-11-23
 
