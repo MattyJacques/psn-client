@@ -20,6 +20,10 @@
 - A malformed authorisation redirect raises `AuthenticationError`, and any `Faraday::Error`, corrupt compressed body or malformed response header raises `TransportError`
 - `RateLimitError#retry_at` falls back to `Retry-After` when `X-RateLimit-Next-Available` is not a whole number
 - `Auth.authenticate` no longer fails under debug logging when the token response has no `expires_in`
+- Added `PSN::Client::Tokens`, which holds `access_token`, `expires_at`, `refresh_token` and `refresh_token_expires_at`, with `expired?` and `refresh_token_expired?`. Its `inspect` leaves the token values out
+- Added `Auth.tokens` and `Auth#tokens`, which authenticate like `Auth.authenticate` but return `Tokens`, so the refresh token Sony issues is no longer discarded. `Auth.authenticate` still returns the access token string
+- Added `Auth.refresh(refresh_token)` and `Auth#refresh`, which trade a refresh token for new `Tokens` without the NPSSO. A refresh token Sony no longer accepts raises `AuthenticationError` with an `error_code` of `"invalid_grant"`, and a `nil` or blank one raises `ArgumentError`
+- Added `Session#tokens` and `Session.from_refresh_token(refresh_token)`, and `Session.new` accepts `Tokens` in place of an access token string. Nothing is refreshed automatically
 
 ## [0.2.0] - 2026-11-23
 
