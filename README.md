@@ -24,7 +24,7 @@ Authentication only needs your NPSSO token. To get it, sign in at playstation.co
 
 | Variable | Required | Description |
 |---|---|---|
-| `PSN_NPSSO` | Yes | Your NPSSO token |
+| `PSN_NPSSO` | Yes | Your NPSSO token. Not needed when you pass `npsso:` or use a [refresh token](#refresh-tokens) |
 | `PSN_CLIENT_ID` | No | The PSN OAuth2 client ID. Defaults to the PlayStation app's public client (`PSN::Client::Auth::DEFAULT_CLIENT_ID`) |
 | `PSN_BASIC_TOKEN` | No | The base64-encoded `client_id:client_secret`. Defaults to the PlayStation app's (`PSN::Client::Auth::DEFAULT_BASIC_TOKEN`). |
 
@@ -47,6 +47,19 @@ access_token = PSN::Client::Auth.authenticate(npsso: user.npsso)
 # client_id: and basic_token: can be passed the same way
 ```
 
+`Auth.tokens` runs the same exchange with the same options, and returns a `PSN::Client::Tokens` holding the refresh token and both expiry times as well:
+
+```ruby
+tokens = PSN::Client::Auth.tokens
+tokens.access_token              # the string authenticate returns
+tokens.expires_at                # Time, about an hour away
+tokens.refresh_token
+tokens.refresh_token_expires_at  # Time
+tokens.expired?                  # also refresh_token_expired?
+```
+
+See [Refresh tokens](#refresh-tokens) for what the refresh token is for.
+
 ### Sessions
 
 `PSN::Client::Session` shares one access token and one HTTP request object across the API classes described below:
@@ -59,6 +72,34 @@ session.trophies.trophy_summary
 session.users.profile(online_id: 'example_user')
 session.account.devices
 ```
+
+A session built by `Session.authenticate` or `Session.from_refresh_token` keeps its `Tokens` in `session.tokens`. It is `nil` for a session built from an access token string or a `request:`.
+
+### Refresh tokens
+
+An access token lasts about an hour. The refresh token issued with it gets a new one without the NPSSO, so an app can store the refresh token instead of asking for the NPSSO each time:
+
+```ruby
+session = PSN::Client::Session.authenticate(npsso: npsso)
+store.save(session.tokens.refresh_token, session.tokens.refresh_token_expires_at)
+
+# later, without the NPSSO
+session = PSN::Client::Session.from_refresh_token(store.refresh_token)
+```
+
+Without a session, `PSN::Client::Auth.refresh(refresh_token)` returns the new `Tokens`, and `Session.new` accepts them in place of an access token string. Both refresh calls take `client_id:`, `basic_token:` and the timeouts, like `authenticate`.
+
+Nothing is refreshed automatically, and a session keeps the access token it was built with. Once that expires, API calls raise `AuthenticationError`; build a new session with `from_refresh_token`.
+
+This is how Sony treated refresh tokens when checked on 2026-11-24. Sony does not document it, so it may change:
+
+- A refresh token lasted 10 days (`refresh_token_expires_in` was 863999 seconds), which is shorter than the NPSSO's two months.
+- Refreshing returned the same refresh token and did not extend it. `refresh_token_expires_at` stays where the NPSSO exchange put it, so store it and expect to need the NPSSO again after that time.
+- Every NPSSO exchange issued a new, separate refresh token with a fresh 10 days.
+
+A refresh token Sony no longer accepts raises `AuthenticationError` with an `error_code` of `"invalid_grant"`. A `nil` or blank one raises `ArgumentError` before any request is made.
+
+Treat both tokens as secrets. `Tokens#inspect` leaves the values out, and the gem never logs them.
 
 ### Timeouts and custom transport
 
@@ -184,13 +225,13 @@ Every error the gem raises from a PSN call is a `PSN::Client::Error` (argument v
 
 | Class | Raised when |
 | --- | --- |
-| `PSN::Client::AuthenticationError` | `Auth.authenticate` is refused (expired or invalid NPSSO, rejected token exchange, malformed redirect), or an API call returns HTTP 401. `error_code` holds Sony's OAuth error code, such as `"login_required"` for an expired NPSSO. |
+| `PSN::Client::AuthenticationError` | `Auth.authenticate` or `Auth.tokens` is refused (expired or invalid NPSSO, rejected token exchange, malformed redirect), `Auth.refresh` is refused, or an API call returns HTTP 401. `error_code` holds Sony's OAuth error code, such as `"login_required"` for an expired NPSSO or `"invalid_grant"` for a refresh token Sony no longer accepts. |
 | `PSN::Client::PrivacyError` | HTTP 403 caused by the target user's privacy settings |
-| `PSN::Client::RateLimitError` | HTTP 429, from an API call or from `Auth.authenticate`. `retry_at` is a `Time` from `X-RateLimit-Next-Available` or `Retry-After` (seconds counted from when the error was raised), or `nil` |
+| `PSN::Client::RateLimitError` | HTTP 429, from an API call or from `Auth`. `retry_at` is a `Time` from `X-RateLimit-Next-Available` or `Retry-After` (seconds counted from when the error was raised), or `nil` |
 | `PSN::Client::GraphQLError` | A GraphQL response carries `errors`, even on HTTP 200. `errors` is the raw array and `data` any partial result |
 | `PSN::Client::TransportError` | No usable response was received: DNS, connection, TLS or timeout failure, or a response that could not be read (malformed headers, corrupt compressed body) |
 | `PSN::Client::ParseError` | A successful response body, or the token exchange response, is not valid JSON, or a GraphQL response is empty (any other empty body returns `nil` instead) |
-| `PSN::Client::Error` | Any other non-2xx response, including an HTTP 5xx from `Auth.authenticate` |
+| `PSN::Client::Error` | Any other non-2xx response, including an HTTP 5xx from `Auth` |
 
 Errors built from a response expose `status` (Integer), `headers` (Hash with lowercase names) and `body` (raw String); otherwise these are `nil`/empty. The original exception, for transport, parse and token-exchange failures, is available from `cause`.
 

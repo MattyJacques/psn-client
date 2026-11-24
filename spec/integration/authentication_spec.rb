@@ -45,6 +45,53 @@ RSpec.describe 'Authenticating over HTTP', :integration do
       .to have_been_made.once
   end
 
+  it 'keeps the refresh token and its expiry on the session' do
+    tokens = PSN::Client::Session.authenticate(**credentials).tokens
+
+    expect(tokens.refresh_token).to eq('fixture-refresh-token')
+    expect(tokens.refresh_token_expires_at).to be_within(5).of(Time.now + 863_999)
+  end
+
+  context 'with a saved refresh token' do
+    let(:session) do
+      PSN::Client::Session.from_refresh_token('saved-refresh', client_id: 'client-1', basic_token: 'basic-1')
+    end
+
+    it 'sends the refresh token grant to the token endpoint and skips the authorize step' do
+      session
+
+      expect(a_request(:post, token_url).with(
+               body: hash_including('grant_type' => 'refresh_token', 'refresh_token' => 'saved-refresh',
+                                    'token_format' => 'jwt', 'scope' => 'psn:mobile.v2.core psn:clientapp'),
+               headers: { 'Authorization' => 'Basic basic-1' }
+             )).to have_been_made.once
+      expect(a_request(:get, authorize_url).with(query: hash_including({}))).not_to have_been_made
+    end
+
+    it 'uses the refreshed token for API calls and keeps the refresh token' do
+      expect(session.trophies.trophy_summary).to include('trophyLevel' => 300)
+      expect(a_request(:get, summary_url).with(headers: { 'Authorization' => 'Bearer fixture-access-token' }))
+        .to have_been_made.once
+      expect(session.tokens.refresh_token).to eq('fixture-refresh-token')
+    end
+
+    context 'when the refresh token is no longer valid' do
+      before do
+        stub_request(:post, token_url).to_return(
+          status: 400, headers: HTTPIntegration::JSON_HEADERS,
+          body: '{"error":"invalid_grant","error_description":"Invalid refresh token","error_code":4159}'
+        )
+      end
+
+      it 'raises AuthenticationError with the OAuth error code' do
+        expect { session }
+          .to raise_error(PSN::Client::AuthenticationError, /Invalid refresh token/) { |error|
+            expect(error).to have_attributes(error_code: 'invalid_grant', status: 400)
+          }
+      end
+    end
+  end
+
   context 'when the NPSSO has expired' do
     let(:redirect) { 'com.scee.psxandroid.scecompcall://redirect/?error=login_required' }
 

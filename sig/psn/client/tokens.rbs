@@ -1,0 +1,21 @@
+module PSN
+  module Client
+    class Tokens
+      attr_reader access_token: String
+      attr_reader expires_at: Time?
+      attr_reader refresh_token: String?
+      attr_reader refresh_token_expires_at: Time?
+
+      def self.from_oauth2: (OAuth2::AccessToken oauth_token, ?fallback_refresh_token: String?, ?now: Time) -> Tokens
+      def initialize: (access_token: String, ?expires_at: Time?, ?refresh_token: String?, ?refresh_token_expires_at: Time?) -> void
+      def expired?: (?Time now) -> bool
+      def refresh_token_expired?: (?Time now) -> bool
+      def inspect: () -> String
+      alias to_s inspect
+
+      private
+
+      def past?: (Time? time, Time now) -> bool
+    end
+  end
+end
