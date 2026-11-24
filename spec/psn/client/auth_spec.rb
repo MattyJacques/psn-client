@@ -33,6 +33,35 @@ RSpec.describe PSN::Client::Auth do
     end
   end
 
+  describe '.tokens' do
+    let(:tokens) { PSN::Client::Tokens.new(access_token: 'token') }
+    let(:instance) { instance_double(described_class, tokens: tokens) }
+
+    before do
+      allow(described_class).to receive(:new).and_return(instance)
+    end
+
+    it 'delegates to a new instance built from the options' do
+      expect(described_class.tokens(npsso: 'n')).to be(tokens)
+      expect(described_class).to have_received(:new).with(npsso: 'n')
+    end
+  end
+
+  describe '.refresh' do
+    let(:tokens) { PSN::Client::Tokens.new(access_token: 'token') }
+    let(:instance) { instance_double(described_class, refresh: tokens) }
+
+    before do
+      allow(described_class).to receive(:new).and_return(instance)
+    end
+
+    it 'refreshes on a new instance built from the options' do
+      expect(described_class.refresh('r', client_id: 'c', read_timeout: 5)).to be(tokens)
+      expect(described_class).to have_received(:new).with(client_id: 'c', read_timeout: 5)
+      expect(instance).to have_received(:refresh).with('r')
+    end
+  end
+
   describe '#initialize' do
     it 'rejects unknown options' do
       expect { described_class.new(timeout: 5) }.to raise_error(ArgumentError, 'unknown keyword: :timeout')
@@ -68,7 +97,10 @@ RSpec.describe PSN::Client::Auth do
     let(:http) { instance_double(Net::HTTP) }
     let(:oauth_client) { instance_double(OAuth2::Client) }
     let(:auth_code_strategy) { instance_double(OAuth2::Strategy::AuthCode) }
-    let(:access_token) { instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', expires_in: 600) }
+    let(:access_token) do
+      instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', expires_in: 600, refresh_token: 'REFRESH_TOKEN',
+                                           expires_at: 1_800_003_599, params: { 'refresh_token_expires_in' => 863_999 })
+    end
 
     before do
       allow(ENV).to receive(:fetch).with('PSN_NPSSO', nil).and_return('test_npsso')
@@ -95,6 +127,15 @@ RSpec.describe PSN::Client::Auth do
 
       it 'returns the access token' do
         expect(auth.authenticate).to eq('ACCESS_TOKEN')
+      end
+
+      it 'returns both tokens from #tokens' do
+        expect(auth.tokens).to have_attributes(access_token: 'ACCESS_TOKEN', refresh_token: 'REFRESH_TOKEN',
+                                               expires_at: Time.at(1_800_003_599))
+      end
+
+      it 'resolves the refresh token lifetime to a time' do
+        expect(auth.tokens.refresh_token_expires_at).to be_within(5).of(Time.now + 863_999)
       end
 
       it 'logs the authentication process' do
@@ -461,7 +502,10 @@ RSpec.describe PSN::Client::Auth do
     context 'when debug logging is on' do
       let(:debug_messages) { [] }
       let(:expires_in) { 600 }
-      let(:access_token) { instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', expires_in: expires_in) }
+      let(:access_token) do
+        instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', expires_in: expires_in,
+                                             refresh_token: 'REFRESH_TOKEN', expires_at: nil, params: {})
+      end
 
       before do
         allow(http).to receive(:request).and_return(http_response(302, '', 'Location' => 'https://r.url?code=C'))
@@ -497,6 +541,183 @@ RSpec.describe PSN::Client::Auth do
 
         expect(auth_code_strategy).to have_received(:get_token)
           .with('v3:ABC-123_test.foo/bar=', anything)
+      end
+    end
+  end
+
+  describe '#refresh' do
+    let(:auth) { described_class.new }
+    let(:oauth_client) { instance_double(OAuth2::Client) }
+    let(:refreshed_token) { 'REFRESH_TOKEN' }
+    let(:access_token) do
+      instance_double(OAuth2::AccessToken, token: 'ACCESS_TOKEN', refresh_token: refreshed_token,
+                                           expires_at: 1_800_003_599, params: { 'refresh_token_expires_in' => 863_999 })
+    end
+
+    before do
+      allow(ENV).to receive(:fetch).with('PSN_NPSSO', anything)
+      allow(ENV).to receive(:fetch).with('PSN_CLIENT_ID', described_class::DEFAULT_CLIENT_ID)
+                                   .and_return('test_client_id')
+      allow(ENV).to receive(:fetch).with('PSN_BASIC_TOKEN', described_class::DEFAULT_BASIC_TOKEN)
+                                   .and_return('env_basic_token')
+
+      allow(OAuth2::Client).to receive(:new).and_return(oauth_client)
+      allow(oauth_client).to receive(:get_token).and_return(access_token)
+      allow(Net::HTTP).to receive(:new)
+    end
+
+    it 'requests new tokens with the refresh token grant' do
+      auth.refresh('SAVED')
+
+      expect(oauth_client).to have_received(:get_token).with(
+        { grant_type: 'refresh_token', refresh_token: 'SAVED', scope: 'psn:mobile.v2.core psn:clientapp',
+          token_format: 'jwt', headers: { Authorization: 'Basic env_basic_token' } }
+      )
+    end
+
+    it 'returns the new tokens' do
+      expect(auth.refresh('SAVED')).to have_attributes(access_token: 'ACCESS_TOKEN', refresh_token: 'REFRESH_TOKEN',
+                                                       expires_at: Time.at(1_800_003_599))
+    end
+
+    it 'resolves the refresh token lifetime to a time' do
+      expect(auth.refresh('SAVED').refresh_token_expires_at).to be_within(5).of(Time.now + 863_999)
+    end
+
+    it 'logs the refresh' do
+      auth.refresh('SAVED')
+
+      expect(logger).to have_received(:info).with('Refreshing PSN access token')
+      expect(logger).to have_received(:info).with('Refreshed PSN access token')
+    end
+
+    it 'does not need the NPSSO' do
+      auth.refresh('SAVED')
+
+      expect(ENV).not_to have_received(:fetch).with('PSN_NPSSO', anything)
+      expect(Net::HTTP).not_to have_received(:new)
+    end
+
+    context 'with a real logger at debug level' do
+      let(:log) { StringIO.new }
+      let(:logger) { Logger.new(log, level: Logger::DEBUG) }
+
+      it 'never logs a token' do
+        auth.refresh('SAVED')
+
+        expect(log.string).to include('Refreshed PSN access token')
+        expect(log.string).not_to match(/SAVED|REFRESH_TOKEN|ACCESS_TOKEN/)
+      end
+    end
+
+    context 'when the response has no refresh token' do
+      let(:refreshed_token) { nil }
+
+      it 'keeps the refresh token that was used' do
+        expect(auth.refresh('SAVED').refresh_token).to eq('SAVED')
+      end
+    end
+
+    context 'with explicit credentials' do
+      let(:auth) { described_class.new(client_id: 'my_client', basic_token: 'my_basic') }
+
+      it 'uses the client ID and basic token given' do
+        auth.refresh('SAVED')
+
+        expect(OAuth2::Client).to have_received(:new).with('my_client', '', anything)
+        expect(oauth_client).to have_received(:get_token)
+          .with(hash_including(headers: { Authorization: 'Basic my_basic' }))
+      end
+    end
+
+    context 'with timeouts' do
+      let(:auth) { described_class.new(read_timeout: 5) }
+
+      it 'applies them to the token request' do
+        auth.refresh('SAVED')
+
+        expect(OAuth2::Client).to have_received(:new)
+          .with('test_client_id', '', hash_including(connection_opts: { request: { read_timeout: 5 } }))
+      end
+    end
+
+    [nil, '', "  \n", :saved].each do |blank|
+      context "when the refresh token is #{blank.inspect}" do
+        it 'raises ArgumentError without making a request' do
+          expect { auth.refresh(blank) }.to raise_error(ArgumentError, 'a refresh token is required')
+          expect(oauth_client).not_to have_received(:get_token)
+        end
+      end
+    end
+
+    context 'when the refresh token is rejected' do
+      let(:token_response) do
+        instance_double(OAuth2::Response, status: 400, headers: { 'Content-Type' => 'application/json' },
+                                          body: '{"error":"invalid_grant"}',
+                                          parsed: { 'error' => 'invalid_grant',
+                                                    'error_description' => 'Invalid refresh token' })
+      end
+
+      before do
+        allow(oauth_client).to receive(:get_token).and_raise(OAuth2::Error.new(token_response))
+      end
+
+      it 'raises AuthenticationError with the OAuth details' do
+        expect { auth.refresh('SAVED') }
+          .to raise_error(PSN::Client::AuthenticationError, 'PSN token refresh failed: Invalid refresh token') do |e|
+          expect(e).to have_attributes(error_code: 'invalid_grant', status: 400)
+          expect(e.cause).to be_a(OAuth2::Error)
+        end
+      end
+
+      it 'logs the error' do
+        expect { auth.refresh('SAVED') }.to raise_error(PSN::Client::AuthenticationError)
+        expect(logger).to have_received(:error).with('PSN token refresh failed: Invalid refresh token')
+      end
+    end
+
+    { 429 => PSN::Client::RateLimitError, 503 => PSN::Client::Error }.each do |status, error_class|
+      context "when the token endpoint answers HTTP #{status}" do
+        let(:token_response) do
+          instance_double(OAuth2::Response, status: status, headers: {}, body: 'try later', parsed: nil)
+        end
+
+        before do
+          allow(oauth_client).to receive(:get_token).and_raise(OAuth2::Error.new(token_response))
+        end
+
+        it "raises #{error_class} rather than AuthenticationError" do
+          expect { auth.refresh('SAVED') }.to raise_error(PSN::Client::Error, /PSN token refresh failed/) do |e|
+            expect(e).to be_an_instance_of(error_class)
+            expect(e).to have_attributes(status: status, body: 'try later')
+          end
+        end
+      end
+    end
+
+    context 'when the token request times out' do
+      before do
+        allow(oauth_client).to receive(:get_token).and_raise(Faraday::TimeoutError)
+      end
+
+      it 'raises TransportError' do
+        expect { auth.refresh('SAVED') }
+          .to raise_error(PSN::Client::TransportError, /PSN token request failed/) do |e|
+          expect(e.cause).to be_a(Faraday::TimeoutError)
+        end
+      end
+    end
+
+    context 'when the token response is malformed JSON' do
+      before do
+        allow(oauth_client).to receive(:get_token).and_raise(JSON::ParserError, 'unexpected token')
+      end
+
+      it 'raises ParseError wrapping the JSON error' do
+        expect { auth.refresh('SAVED') }
+          .to raise_error(PSN::Client::ParseError, /token response was not valid JSON/) do |e|
+          expect(e.cause).to be_a(JSON::ParserError)
+        end
       end
     end
   end

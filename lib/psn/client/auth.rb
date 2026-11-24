@@ -5,11 +5,12 @@ require 'uri'
 require 'oauth2'
 require 'json'
 require_relative 'errors'
+require_relative 'tokens'
 
 module PSN
   module Client
-    # Handles acquiring PSN access tokens by exchanging an NPSSO cookie
-    # for an authorization code and then exchanging that code for a token.
+    # Acquires PSN tokens, either by exchanging an NPSSO cookie for an authorization code
+    # and that code for tokens, or by trading a saved refresh token for new ones.
     class Auth
       AUTH_URL = 'https://ca.account.sony.com/api/authz/v3/'
       # The PlayStation Android app's public OAuth client, the same for every user (see
@@ -18,16 +19,26 @@ module PSN
       # Base64 of "<DEFAULT_CLIENT_ID>:<client secret>".
       DEFAULT_BASIC_TOKEN = 'MDk1MTUxNTktNzIzNy00MzcwLTliNDAtMzgwNmU2N2MwODkxOnVjUGprYTV0bnRCMktxc1A='
 
+      REDIRECT_URI = 'com.scee.psxandroid.scecompcall://redirect'
+      SCOPE = 'psn:mobile.v2.core psn:clientapp'
       TIMEOUT_OPTIONS = %i[open_timeout read_timeout write_timeout].freeze
 
       def self.authenticate(**options)
         new(**options).authenticate
       end
 
+      def self.tokens(**options)
+        new(**options).tokens
+      end
+
+      def self.refresh(refresh_token, **options)
+        new(**options).refresh(refresh_token)
+      end
+
       # Each credential falls back to its environment variable (PSN_NPSSO, PSN_CLIENT_ID,
-      # PSN_BASIC_TOKEN), read when authenticating, and then to the default. Timeouts are in
-      # seconds and apply to both the authorisation request and the token exchange; nil keeps
-      # the HTTP library's default.
+      # PSN_BASIC_TOKEN), read when it is used, and then to the default. Only #tokens and
+      # #authenticate use the NPSSO. Timeouts are in seconds and apply to the authorisation
+      # request and to every token request; nil keeps the HTTP library's default.
       def initialize(npsso: nil, client_id: nil, basic_token: nil, **timeouts)
         unknown = timeouts.keys - TIMEOUT_OPTIONS
         raise ArgumentError, "unknown keyword: #{unknown.map(&:inspect).join(', ')}" unless unknown.empty?
@@ -38,7 +49,13 @@ module PSN
         @timeouts = timeouts.compact
       end
 
+      # The access token alone; #tokens also returns the refresh token and both expiry times.
       def authenticate
+        tokens.access_token
+      end
+
+      # Exchanges the NPSSO for a new access token and refresh token.
+      def tokens
         PSN.logger.info('Getting new PSN access token')
 
         code = fetch_auth_code
@@ -49,7 +66,21 @@ module PSN
         PSN.logger.debug { "Fetched access token which expires in: #{minutes} minutes" }
         PSN.logger.info('Acquired new PSN access token')
 
-        access_token.token
+        Tokens.from_oauth2(access_token)
+      end
+
+      # Trades a refresh token from an earlier #tokens or #refresh for new tokens, without the
+      # NPSSO. A refresh token Sony no longer accepts raises AuthenticationError with the
+      # error_code "invalid_grant".
+      def refresh(refresh_token)
+        blank = !refresh_token.is_a?(String) || refresh_token.strip.empty?
+        raise ArgumentError, 'a refresh token is required' if blank
+
+        PSN.logger.info('Refreshing PSN access token')
+        access_token = fetch_refreshed_token(refresh_token)
+        PSN.logger.info('Refreshed PSN access token')
+
+        Tokens.from_oauth2(access_token, fallback_refresh_token: refresh_token)
       end
 
       private
@@ -87,18 +118,31 @@ module PSN
       end
 
       def fetch_token(code)
-        client.auth_code.get_token(code,
-                                   redirect_uri: 'com.scee.psxandroid.scecompcall://redirect',
-                                   token_format: 'jwt',
-                                   headers: { Authorization: "Basic #{basic_token}" })
-      rescue OAuth2::Error, JSON::ParserError, Faraday::Error => e
-        log_and_raise token_error(e)
+        request_token('exchange') do
+          client.auth_code.get_token(code, redirect_uri: REDIRECT_URI, token_format: 'jwt',
+                                           headers: { Authorization: "Basic #{basic_token}" })
+        end
       end
 
-      def token_error(error)
+      def fetch_refreshed_token(refresh_token)
+        request_token('refresh') do
+          client.get_token({ grant_type: 'refresh_token', refresh_token: refresh_token, scope: SCOPE,
+                             token_format: 'jwt', headers: { Authorization: "Basic #{basic_token}" } })
+        end
+      end
+
+      # Runs a token request, turning its failures into this gem's errors. +action+ names the
+      # request in the error message.
+      def request_token(action)
+        yield
+      rescue OAuth2::Error, JSON::ParserError, Faraday::Error => e
+        log_and_raise token_error(e, action)
+      end
+
+      def token_error(error, action)
         case error
         when OAuth2::Error
-          response_error("PSN token exchange failed: #{error.description || error.message}",
+          response_error("PSN token #{action} failed: #{error.description || error.message}",
                          error.response, error_code: error.code)
         # oauth2 parses the token body before returning the response, so none is available to attach.
         when JSON::ParserError then ParseError.new("PSN token response was not valid JSON: #{error.message}")
@@ -158,9 +202,7 @@ module PSN
       end
 
       def auth_url
-        client.auth_code.authorize_url(access_type: 'offline',
-                                       redirect_uri: 'com.scee.psxandroid.scecompcall://redirect',
-                                       scope: 'psn:mobile.v2.core psn:clientapp')
+        client.auth_code.authorize_url(access_type: 'offline', redirect_uri: REDIRECT_URI, scope: SCOPE)
       end
 
       def npsso_cookie

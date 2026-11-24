@@ -4,6 +4,8 @@ module PSN
       AUTH_URL: String
       DEFAULT_CLIENT_ID: String
       DEFAULT_BASIC_TOKEN: String
+      REDIRECT_URI: String
+      SCOPE: String
       TIMEOUT_OPTIONS: Array[Symbol]
 
       @npsso: String?
@@ -12,8 +14,12 @@ module PSN
       @timeouts: Hash[Symbol, Numeric]
 
       def self.authenticate: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> String
+      def self.tokens: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> Tokens
+      def self.refresh: (String refresh_token, ?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> Tokens
       def initialize: (?npsso: String?, ?client_id: String?, ?basic_token: String?, ?open_timeout: Numeric?, ?read_timeout: Numeric?, ?write_timeout: Numeric?) -> void
       def authenticate: () -> String
+      def tokens: () -> Tokens
+      def refresh: (String refresh_token) -> Tokens
 
       private
 
@@ -22,7 +28,9 @@ module PSN
       def http_for: (URI) -> Net::HTTP
       def request_for: (URI) -> Net::HTTP::Get
       def fetch_token: (String) -> OAuth2::AccessToken
-      def token_error: (StandardError) -> Error
+      def fetch_refreshed_token: (String) -> OAuth2::AccessToken
+      def request_token: (String) { () -> OAuth2::AccessToken } -> OAuth2::AccessToken
+      def token_error: (StandardError, String) -> Error
       def parse_code: (Net::HTTPResponse) -> String
       def fail_with: (String, Net::HTTPResponse, error_code: String?) -> bot
       def response_error: (String, untyped, error_code: String?) -> Error
